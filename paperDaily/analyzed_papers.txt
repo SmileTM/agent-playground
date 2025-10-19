@@ -1,0 +1,15 @@
+2510.14973v1,Attention Is All You Need for KV Cache in Diffusion LLMs,100
+2510.14967v1,Information Gain-based Policy Optimization: A Simple and Effective Approach for Multi-Turn LLM Agents,100
+2510.14966v1,Identity-Link IRT for Label-Free LLM Evaluation: Preserving Additivity in TVD-MI Scores,100
+2510.14959v1,CBF-RL: Safety Filtering Reinforcement Learning in Training with Control Barrier Functions,100
+2510.14980v1,Agentic Design of Compositional Machines,98
+2510.14969v1,LLMs as Scalable, General-Purpose Simulators For Evolving Digital Agent Training,100
+2510.14958v1,MathCanvas: Intrinsic Visual Chain-of-Thought for Multimodal Mathematical Reasoning,100
+2510.14972v1,TokDrift: When LLM Speaks in Subwords but Code Speaks in Grammar,98
+2510.14961v1,Efficient Parallel Samplers for Recurrent-Depth Models and Their Connection to Diffusion Language Models,98
+2510.14979v1,From Pixels to Words -- Towards Native Vision-Language Primitives at Scale,95
+2510.14978v1,Learning an Image Editing Model without Image Editing Pairs,92
+2510.14974v1,pi-Flow: Policy-Based Few-Step Generation via Imitation Distillation,92
+2510.14949v1,DialectGen: Benchmarking and Improving Dialect Robustness in Multimodal Generation,92
+2510.14977v1,Terra: Explorable Native 3D World Model with Point Latents,85
+2510.14968v1,RDD: Retrieval-Based Demonstration Decomposer for Planner Alignment in Long-Horizon Tasks,85

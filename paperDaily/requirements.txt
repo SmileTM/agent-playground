@@ -1,0 +1,7 @@
+arxiv
+google-genai
+schedule
+python-dotenv
+requests
+PyMuPDF
+tqdm
