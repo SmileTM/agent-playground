@@ -13,10 +13,13 @@ from email_sender import send_email, format_papers_to_html
 from config import MAX_NEW_PAPERS_TO_ANALYZE
 
 import os
+from dotenv import load_dotenv
 
 from tqdm import tqdm
 
-ANALYZED_PAPERS_FILE = "/Users/smiletm/Documents/code/playground/leetcode/paperDaily/analyzed_papers.txt"
+load_dotenv()
+
+ANALYZED_PAPERS_FILE = os.getenv("ANALYZED_PAPERS_FILE", "analyzed_papers.txt")
 
 
 def _load_analyzed_papers_info():

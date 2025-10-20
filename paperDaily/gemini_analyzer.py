@@ -1,5 +1,9 @@
 from google import genai
 from config import GEMINI_API_KEY, ARXIV_QUERY, ARXIV_CATEGORIES
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # The new SDK doesn't require a global configure call.
 # The API key will be passed during client initialization or read from env.
@@ -22,7 +26,7 @@ def score_paper_relevance(title, summary):
         return 0 # Cannot score without API key
 
     try:
-        model_name = "gemini-2.5-flash"
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")
         client = genai.Client(api_key=GEMINI_API_KEY)
         search_criteria_str = _get_search_criteria_string()
 
@@ -70,7 +74,7 @@ def analyze_paper_content(content):
         }
 
     try:
-        model_name = "gemini-2.5-flash"
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")
         client = genai.Client(api_key=GEMINI_API_KEY)
         prompt = f"""
         作为一名专业的人工智能大模型AI研究员，请根据提供的论文全文，以严谨、专业的视角，用中文进行深入分析，并**直接输出以下结构化的总结内容，不要包含任何额外的介绍性文字或开场白。**
