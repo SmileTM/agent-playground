@@ -32,18 +32,29 @@ def send_email(subject, html_content):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-def format_papers_to_html(analyzed_papers):
+def format_papers_to_html(analyzed_papers, subject="Daily arXiv Paper Digest"):
     """
     Formats the list of analyzed papers into an HTML string, converting markdown-like syntax to HTML.
     """
-    html = "<html><head><style>body { font-family: sans-serif; } h1, h2, h3 { color: #333; } a { color: #1a73e8; text-decoration: none; } hr { border: 0; border-top: 1px solid #eee; }</style></head><body><h1>Daily arXiv Paper Digest</h1>"
+    html = f"<html><head><style>body {{ font-family: sans-serif; }} h1, h2, h3 {{ color: #333; }} a {{ color: #1a73e8; text-decoration: none; }} hr {{ border: 0; border-top: 1px solid #eee; }}</style></head><body><h1>{subject}</h1>"
     for i, paper in enumerate(analyzed_papers):
-        html += f"<h2>{i+1}. <a href='{paper['pdf_url']}'>{paper['title']}</a> (Relevance Score: {paper.get('relevance_score', 'N/A')})</h2>"
-        if paper.get('authors'):
+        is_single_pdf = paper.get('relevance_score') == 'N/A'
+
+        if is_single_pdf:
+            html += f"<h2>{paper['title']}</h2>"
+            display_path = paper['pdf_url'].replace('file://', '')
+            html += f"<p><strong>File Path:</strong> <a href='{paper['pdf_url']}'>{display_path}</a></p>"
+        else:
+            html += f"<h2>{i+1}. <a href='{paper['pdf_url']}'>{paper['title']}</a> (Relevance Score: {paper.get('relevance_score', 'N/A')})</h2>"
+
+        if paper.get('authors') and paper.get('authors') != ['N/A']:
             html += f"<p><strong>Authors:</strong> {', '.join(paper['authors'])}</p>"
-        html += "<h3>Summary:</h3>"
-        html += f"<p>{paper['summary']}</p>"
-        html += "<h3>Gemini Analysis:</h3>"
+        
+        if not is_single_pdf:
+            html += "<h3>Summary:</h3>"
+            html += f"<p>{paper['summary']}</p>"
+
+        html += "<h3>Analysis:</h3>"
         
         analysis_content = paper['analysis']
         

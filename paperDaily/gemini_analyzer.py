@@ -83,6 +83,8 @@ def analyze_paper_content(content):
 
         请按照以下结构进行分析和总结：
 
+        -   **标题 (Title)**: 论文的完整标题。
+
         0.  **作者与机构分析 (Author & Institution Analysis)**:
             *   简要分析论文作者（包括作者邮箱，如果能从全文中提取到）。
             *   简要介绍这篇论文主要来自哪个机构、公司或学校发表。

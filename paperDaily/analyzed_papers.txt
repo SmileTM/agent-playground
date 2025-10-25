@@ -13,3 +13,20 @@
 2510.14949v1,DialectGen: Benchmarking and Improving Dialect Robustness in Multimodal Generation,92
 2510.14977v1,Terra: Explorable Native 3D World Model with Point Latents,85
 2510.14968v1,RDD: Retrieval-Based Demonstration Decomposer for Planner Alignment in Long-Horizon Tasks,85
+2510.15870v1,OmniVinci: Enhancing Architecture and Data for Omni-Modal Understanding LLM,100
+2510.15862v1,PokeeResearch: Effective Deep Research via Reinforcement Learning from AI Feedback and Robust Reasoning Scaffold,100
+2510.15859v1,InfiMed-ORBIT: Aligning LLMs on Open-Ended Complex Tasks via Rubric-Based Incremental Training,98
+2510.15851v1,SpeechLLMs for Large-scale Contextualized Zero-shot Slot Filling,98
+2510.15804v1,Emergence of Linear Truth Encodings in Language Models,98
+2510.20817v1,KL-Regularized Reinforcement Learning is Designed to Mode Collapse,98
+2510.20812v1,Small Drafts, Big Verdict: Information-Intensive Visual Reasoning via Speculation,98
+2510.20810v1,On the Detectability of LLM-Generated Text: What Exactly Is LLM-Generated Text?,98
+2510.20800v1,Compress to Impress: Efficient LLM Adaptation Using a Single Gradient Step on 100 Samples,98
+2510.20797v1,Simple Context Compression: Mean-Pooling and Multi-Ratio Training,98
+2510.20782v1,A Use-Case Specific Dataset for Measuring Dimensions of Responsible Performance in LLM-generated Text,98
+2510.20780v1,Are Large Reasoning Models Good Translation Evaluators? Analysis and Performance Boost,98
+2510.20768v1,RAGRank: Using PageRank to Counter Poisoning in CTI LLM Pipelines,98
+2510.20807v1,Video Prediction of Dynamic Physical Simulations With Pixel-Space Spatiotemporal Transformers,95
+2510.20787v1,Alleviating Forgetfulness of Linear Attention by Hybrid Sparse Attention and Contextualized Learnable Token Eviction,95
+2510.20783v1,Out-of-distribution Tests Reveal Compositionality in Chess Transformers,97
+2510.20809v1,Real Deep Research for AI, Robotics and Beyond,95
