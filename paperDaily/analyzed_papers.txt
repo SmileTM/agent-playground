@@ -32,3 +32,12 @@
 2510.20809v1,Real Deep Research for AI, Robotics and Beyond,95
 2510.20784v1,A Coherence-Based Measure of AGI,95
 2510.20818v1,VAMOS: A Hierarchical Vision-Language-Action Model for Capability-Modulated and Steerable Navigation,92
+2510.20792v1,BadGraph: A Backdoor Attack Against Latent Diffusion Model for Text-Guided Graph Generation,92
+2510.20813v1,GSWorld: Closed-Loop Photo-Realistic Simulation Suite for Robotic Manipulation,90
+2510.20774v1,FieldGen: From Teleoperated Pre-Manipulation Trajectories to Field-Guided Data Generation,90
+2510.20771v1,AlphaFlow: Understanding and Improving MeanFlow Models,88
+2510.20808v1,The Reality Gap in Robotics: Challenges, Solutions, and Best Practices,85
+2510.20795v1,Bayesian Inference of Primordial Magnetic Field Parameters from CMB with Spherical Graph Neural Networks,85
+2510.20819v1,Towards General Modality Translation with Contrastive and Predictive Latent Diffusion Bridge,75
+2510.20743v1,Empathic Prompting: Non-Verbal Context Integration for Multimodal LLM Conversations,97
+2510.20739v1,Learning to Triage Taint Flows Reported by Dynamic Program Analysis in Node.js Packages,95

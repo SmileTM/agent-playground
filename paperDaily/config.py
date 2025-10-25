@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # arXiv search settings
-ARXIV_QUERY = '"large language model" OR "LLM" OR "transformer" OR "natural language processing" OR "NLP" OR "artificial intelligence" OR "AI" OR "reinforcement learning" OR "world model" OR "visual pre-training" OR "ViT"'
+ARXIV_QUERY = '"large language model" OR "LLM" OR "transformer" OR "natural language processing" OR "NLP" OR "artificial intelligence" OR "AI" OR "reinforcement learning" OR "world model" OR "visual pre-training" OR "ViT" OR "Vision-Language-Action Model"'
 MAX_RESULTS = 20
 ARXIV_IDS = [] # Optional: List of specific arXiv IDs to fetch, e.g., ["2301.00001", "2302.00002"]
 ARXIV_CATEGORIES = ['cs.AI', 'cs.CL', 'cs.LG', 'stat.ML'] # Optional: List of arXiv categories to filter by

@@ -37,6 +37,15 @@ def format_papers_to_html(analyzed_papers, subject="Daily arXiv Paper Digest"):
     Formats the list of analyzed papers into an HTML string, converting markdown-like syntax to HTML.
     """
     html = f"<html><head><style>body {{ font-family: sans-serif; }} h1, h2, h3 {{ color: #333; }} a {{ color: #1a73e8; text-decoration: none; }} hr {{ border: 0; border-top: 1px solid #eee; }}</style></head><body><h1>{subject}</h1>"
+
+    if len(analyzed_papers) > 1:
+        html += "<h2>论文清单:</h2>"
+        html += "<ol>"
+        for idx, paper in enumerate(analyzed_papers):
+            arxiv_id = paper.get('arxiv_id', 'N/A')
+            html += f"<li><strong>{paper['title']}</strong> (ID: {arxiv_id})</li>"
+        html += "</ol>"
+        html += "<hr>"
     for i, paper in enumerate(analyzed_papers):
         is_single_pdf = paper.get('relevance_score') == 'N/A'
 
