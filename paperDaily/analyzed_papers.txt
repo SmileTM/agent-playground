@@ -30,3 +30,5 @@
 2510.20787v1,Alleviating Forgetfulness of Linear Attention by Hybrid Sparse Attention and Contextualized Learnable Token Eviction,95
 2510.20783v1,Out-of-distribution Tests Reveal Compositionality in Chess Transformers,97
 2510.20809v1,Real Deep Research for AI, Robotics and Beyond,95
+2510.20784v1,A Coherence-Based Measure of AGI,95
+2510.20818v1,VAMOS: A Hierarchical Vision-Language-Action Model for Capability-Modulated and Steerable Navigation,92
