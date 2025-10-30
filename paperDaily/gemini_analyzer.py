@@ -129,8 +129,8 @@ def analyze_paper_content(content):
 
         full_response = []
         for chunk in response:
-            full_response.append(chunk.text)
-        
+            if chunk.text:
+                full_response.append(chunk.text)
         return "".join(full_response)
     except Exception as e:
         import traceback
