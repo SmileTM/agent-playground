@@ -47,6 +47,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
     { id: "google", label: "Gemini (Google)" },
     { id: "moonshot", label: "Moonshot (Kimi)" },
     { id: "alibaba", label: "Qwen (Alibaba)" },
+    { id: "local", label: "Local / Custom" },
   ];
 
   return (
@@ -125,7 +126,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                     type="text"
                     value={config[activeTab].baseUrl}
                     onChange={(e) => updateConfig(activeTab, "baseUrl", e.target.value)}
-                    placeholder="https://api.openai.com/v1"
+                    placeholder="http://localhost:1234/v1"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
                   />
                   <p className="mt-1 text-xs text-gray-500">
@@ -140,6 +141,16 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                 {activeTab === "google" && <ul className="list-disc list-inside opacity-80"><li>gemini-pro</li><li>gemini-2.5-flash</li></ul>}
                 {activeTab === "moonshot" && <ul className="list-disc list-inside opacity-80"><li>moonshot-v1-8k</li></ul>}
                 {activeTab === "alibaba" && <ul className="list-disc list-inside opacity-80"><li>qwen-turbo</li></ul>}
+                {activeTab === "local" && (
+                  <div>
+                    <p className="mb-1">Universal endpoint for:</p>
+                    <ul className="list-disc list-inside opacity-80 text-xs">
+                      <li>Ollama / LM Studio</li>
+                      <li>Any OpenAI-compatible API</li>
+                      <li>Custom model names per agent</li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           </div>

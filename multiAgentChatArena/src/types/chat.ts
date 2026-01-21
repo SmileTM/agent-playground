@@ -1,4 +1,4 @@
-export type ModelProvider = "gpt-3.5-turbo" | "gpt-4" | "gemini-pro" | "gemini-2.5-flash" | "qwen-turbo" | "moonshot-v1-8k";
+export type ModelProvider = "gpt-3.5-turbo" | "gpt-4" | "gemini-pro" | "gemini-2.5-flash" | "qwen-turbo" | "moonshot-v1-8k" | "local";
 
 export interface Agent {
   id: string;
@@ -7,6 +7,7 @@ export interface Agent {
   color: string;
   avatar?: string;
   model: ModelProvider;
+  localModelName?: string;
 }
 
 export interface Message {
@@ -28,6 +29,7 @@ export interface ApiConfiguration {
   google: ProviderConfig;
   moonshot: ProviderConfig;
   alibaba: ProviderConfig;
+  local: ProviderConfig;
 }
 
 export const DEFAULT_API_CONFIG: ApiConfiguration = {
@@ -35,6 +37,7 @@ export const DEFAULT_API_CONFIG: ApiConfiguration = {
   google: { apiKey: "", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" },
   moonshot: { apiKey: "", baseUrl: "https://api.moonshot.cn/v1" },
   alibaba: { apiKey: "", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
+  local: { apiKey: "", baseUrl: "http://localhost:1234/v1" },
 };
 
 export interface ChatState {

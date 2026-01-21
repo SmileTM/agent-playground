@@ -16,6 +16,8 @@ export async function POST(req: Request) {
       providerConfig = config.alibaba;
     } else if (model.includes("moonshot")) {
       providerConfig = config.moonshot;
+    } else if (model === "local") {
+      providerConfig = config.local;
     } else {
       // Default to OpenAI for gpt-3.5, gpt-4, or unknown
       providerConfig = config.openai;
@@ -24,8 +26,8 @@ export async function POST(req: Request) {
     const apiKey = providerConfig.apiKey;
     const baseUrl = providerConfig.baseUrl.replace(/\/+$/, ""); // Remove trailing slash
 
-    // If an API key is provided, use the real API
-    if (apiKey) {
+    // If an API key is provided OR it's a local model (which might not need a key), use the real API
+    if (apiKey || model === "local") {
       const systemMessage = {
         role: "system",
         content: `You are ${currentAgent.name}. Your personality/instruction is: "${currentAgent.systemPrompt}".
@@ -38,20 +40,15 @@ export async function POST(req: Request) {
       };
 
       const conversationHistory = messages.map((msg: any) => {
-        if (msg.isUser) {
-          return {
-            role: "user",
-            content: `User: ${msg.content}`
-          };
-        }
+        const role = msg.agentId === currentAgent.id ? "assistant" : "user";
         return {
-          role: msg.agentId === currentAgent.id ? "assistant" : "user",
-          content: `${msg.agentName}: ${msg.content}`
+          role,
+          name: msg.agentName.replace(/\s+/g, '_'), // Standardize name for API
+          content: msg.content
         };
       });
 
       // Process history to ensure alternating roles and no consecutive same roles
-      // Some providers (like Gemini) are very strict about this.
       const processedHistory: { role: string; content: string }[] = [];
 
       // Initial message if history is empty
@@ -63,26 +60,52 @@ export async function POST(req: Request) {
       } else {
         conversationHistory.forEach((msg: any) => {
           if (processedHistory.length > 0 && processedHistory[processedHistory.length - 1].role === msg.role) {
-            // Merge consecutive same roles
-            processedHistory[processedHistory.length - 1].content += "\n\n" + msg.content;
+            // Merge consecutive same roles - concatenating directly for "clean content" as requested
+            processedHistory[processedHistory.length - 1].content += `\n\n${msg.content}`;
           } else {
             processedHistory.push(msg);
           }
         });
       }
 
-      // Ensure history starts with user and ends with user (for some strict providers)
-      // Though usually starting with user is enough.
+      // Ensure history starts and ends with user (strict providers like Gemini/Ollama)
       if (processedHistory.length > 0 && processedHistory[0].role === "assistant") {
         processedHistory.unshift({
           role: "user",
-          content: "Continuing the conversation..."
+          content: "Let's start the discussion."
+        });
+      }
+      if (processedHistory.length > 0 && processedHistory[processedHistory.length - 1].role === "assistant") {
+        processedHistory.push({
+          role: "user",
+          content: "Please continue."
         });
       }
 
+      // Create a list of names to strip (mentions) for the final clean-up
+      const agentNames = allAgents.map((a: any) => a.name);
+
       const payload = {
-        model: model,
-        messages: [systemMessage, ...processedHistory],
+        model: model === "local" ? currentAgent.localModelName || "qwen/qwen3-vl-8b" : model,
+        messages: [
+          systemMessage,
+          ...processedHistory.map(msg => {
+            let content = msg.content;
+
+            // Remove specific @AgentName mentions
+            agentNames.forEach((name: string) => {
+              const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const mentionRegex = new RegExp(`@${escapedName}\\b`, 'g');
+              content = content.replace(mentionRegex, '');
+            });
+            content = content.replace(/@\S+/g, '').trim().replace(/\s+/g, ' ');
+
+            return {
+              role: msg.role,
+              content: content || "(continues)"
+            };
+          })
+        ],
         temperature: 0.7,
         max_tokens: 150,
       };
@@ -96,7 +119,7 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
+          ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -114,16 +137,33 @@ export async function POST(req: Request) {
       }
 
       const data = await apiResponse.json();
-      if (!data.choices?.[0]?.message?.content) {
-        console.error("Unexpected API Response Format:", data);
-        throw new Error("Invalid response format from API");
+      console.log(`[RAW API RESPONSE DEBUG] ${model}:`, JSON.stringify(data, null, 2));
+
+      // Extract content, but be careful with empty strings which are technically valid but falsy
+      let responseContent = data.choices?.[0]?.message?.content;
+
+      // Fallback to other possible locations if message.content is undefined/null
+      if (responseContent === undefined || responseContent === null) {
+        responseContent = data.choices?.[0]?.text
+          || data.message?.content
+          || (typeof data === 'string' ? data : null);
       }
 
-      const responseContent = data.choices[0].message.content.trim();
-      console.log(`[API Response] ${model}: "${responseContent}"`);
+      // If it's still null/undefined, then it's a real format error
+      if (responseContent === null || responseContent === undefined) {
+        console.error("Unexpected API Response Format (Missing Content):", JSON.stringify(data, null, 2));
+        throw new Error("Invalid response format from API. Could not find content in response.");
+      }
+
+      // If it is an empty string, provide a placeholder so the UI doesn't look broken
+      let trimmedContent = typeof responseContent === 'string' ? responseContent.trim() : JSON.stringify(responseContent);
+      if (trimmedContent === "") {
+        trimmedContent = "(The model returned an empty response)";
+      }
+      console.log(`[API Response] ${model}: "${trimmedContent}"`);
 
       return NextResponse.json({
-        content: responseContent,
+        content: trimmedContent,
       });
     }
 

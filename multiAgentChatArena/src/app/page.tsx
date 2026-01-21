@@ -92,6 +92,7 @@ const MODELS: { value: ModelProvider; label: string }[] = [
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "qwen-turbo", label: "Qwen (Tongyi)" },
   { value: "moonshot-v1-8k", label: "Kimi (Moonshot)" },
+  { value: "local", label: "Local Model (Custom)" },
 ];
 
 export default function Home() {
@@ -126,7 +127,7 @@ export default function Home() {
     setMessages((prev) => [...prev, message]);
   };
 
-  const getNextResponse = async (forcedAgentIndex?: number) => {
+  const getNextResponse = async (forcedAgentIndex?: number, historyOverride?: Message[]) => {
     if (agents.length === 0) return;
 
     setIsTyping(true);
@@ -139,7 +140,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages,
+          messages: historyOverride || messages,
           currentAgent,
           allAgents: agents,
           apiConfig, // Pass the full config
@@ -179,7 +180,7 @@ export default function Home() {
       }, 2000);
     }
     return () => clearTimeout(timer);
-  }, [isAutoChatting, isTyping, activeAgentIndex, agents]);
+  }, [isAutoChatting, isTyping, activeAgentIndex, agents, messages]);
 
   const toggleAutoChat = () => setIsAutoChatting(!isAutoChatting);
 
@@ -266,7 +267,8 @@ export default function Home() {
       isUser: true,
     };
 
-    addMessage(newMessage);
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
 
     // Check for mentions to trigger specific response
     const mentionedAgent = agents.find(a => inputValue.includes(`@${a.name}`));
@@ -277,16 +279,12 @@ export default function Home() {
     setInputValue("");
 
     if (mentionedAgent) {
-      // If auto-chat is on, pause it briefly or just let the forced response happen
-      // We'll trigger the mentioned agent immediately
       setTimeout(() => {
         const agentIndex = agents.findIndex(a => a.id === mentionedAgent.id);
         if (agentIndex !== -1) {
-          getNextResponse(agentIndex);
+          getNextResponse(agentIndex, updatedMessages);
         }
-      }, 500); // Small delay for natural feel
-    } else if (isAutoChatting) {
-      // If chatting is already on, the loop will pick up the new context
+      }, 500);
     }
   };
 
@@ -398,7 +396,14 @@ export default function Home() {
                 <label className="text-xs font-semibold text-gray-500 uppercase">Model</label>
                 <select
                   value={agent.model}
-                  onChange={(e) => updateAgent(agent.id, { model: e.target.value as ModelProvider })}
+                  onChange={(e) => {
+                    const newModel = e.target.value as ModelProvider;
+                    const updates: Partial<Agent> = { model: newModel };
+                    if (newModel === "local" && !agent.localModelName) {
+                      updates.localModelName = "qwen/qwen3-vl-8b";
+                    }
+                    updateAgent(agent.id, updates);
+                  }}
                   className="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1"
                 >
                   {MODELS.map((m) => (
@@ -406,6 +411,18 @@ export default function Home() {
                   ))}
                 </select>
               </div>
+
+              {agent.model === "local" && (
+                <div className="animate-in slide-in-from-top-1 duration-150">
+                  <label className="text-xs font-semibold text-gray-500 uppercase">Local Model Name</label>
+                  <input
+                    value={agent.localModelName || ""}
+                    onChange={(e) => updateAgent(agent.id, { localModelName: e.target.value })}
+                    placeholder="e.g. llama3, qwen2"
+                    className="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">Personality</label>
