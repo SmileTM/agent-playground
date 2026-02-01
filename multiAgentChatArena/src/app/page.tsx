@@ -123,6 +123,8 @@ export default function Home() {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
+  const [isComposing, setIsComposing] = useState(false);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState("");
@@ -328,17 +330,29 @@ export default function Home() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
+    const cursor = e.target.selectionStart || 0;
     setInputValue(value);
 
-    // Simple mention detection: check if the last word starts with @
-    const lastWord = value.split(" ").pop();
-    if (lastWord && lastWord.startsWith("@")) {
-      setShowMentions(true);
-      setMentionQuery(lastWord.slice(1).toLowerCase());
-      setMentionIndex(0);
-    } else {
-      setShowMentions(false);
+    // Robust mention detection based on cursor position
+    const textBeforeCursor = value.substring(0, cursor);
+    const lastAtIdx = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAtIdx !== -1) {
+      const textBetweenAtAndCursor = textBeforeCursor.substring(lastAtIdx + 1);
+      // Trigger if no space between @ and cursor, and @ is at start or preceded by space
+      const isAtTriggered = lastAtIdx === 0 || textBeforeCursor[lastAtIdx - 1] === " " || textBeforeCursor[lastAtIdx - 1] === "\n";
+
+      if (isAtTriggered && !textBetweenAtAndCursor.includes(" ")) {
+        setShowMentions(true);
+        setMentionQuery(textBetweenAtAndCursor.toLowerCase());
+        setMentionIndex(0);
+        setMentionStartIndex(lastAtIdx);
+        return;
+      }
     }
+
+    setShowMentions(false);
+    setMentionStartIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -383,23 +397,36 @@ export default function Home() {
     }
 
     if (e.key === "Enter" && !e.shiftKey) {
+      if (isComposing) return;
       e.preventDefault();
       void handleSendMessage();
     }
   };
 
   const selectAgent = (agent: Agent) => {
-    const words = inputValue.split(" ");
-    // Find the last word starting with @ and replace it
-    const lastAtIdx = inputValue.lastIndexOf("@");
-    if (lastAtIdx !== -1) {
-      const newVal = inputValue.substring(0, lastAtIdx) + `@${agent.name} `;
+    if (mentionStartIndex !== -1) {
+      const cursor = inputRef.current?.selectionStart || mentionStartIndex + mentionQuery.length + 1;
+      const beforeMention = inputValue.substring(0, mentionStartIndex);
+      const afterMention = inputValue.substring(cursor);
+
+      const newVal = beforeMention + `@${agent.name} ` + afterMention;
       setInputValue(newVal);
-    } else {
-      setInputValue(prev => prev + `@${agent.name} `);
+
+      // Calculate new cursor position
+      const newCursorPos = mentionStartIndex + agent.name.length + 2; // +1 for @, +1 for space
+
+      // Set focus and cursor position after state update
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
     }
+
     setShowMentions(false);
-    inputRef.current?.focus();
+    setMentionStartIndex(-1);
+    setMentionQuery("");
   };
 
   const handleSendMessage = async () => {
@@ -1007,6 +1034,8 @@ export default function Home() {
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
                 placeholder="Type a message... (Use @ to mention an agent)"
                 className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[36px] py-1.5 px-0 text-sm"
                 rows={1}
