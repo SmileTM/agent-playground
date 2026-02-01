@@ -625,16 +625,16 @@ export default function Home() {
                   ) : (
                     <>
                       <span className="truncate flex-1 font-medium">{session.name}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity">
                         <button
                           onClick={(e) => startEditingSession(session.id, session.name, e)}
-                          className="p-1 hover:bg-gray-200 rounded"
+                          className="p-1 text-gray-500 hover:text-gray-800 transition-colors"
                         >
-                          <Edit className="w-3 h-3 text-gray-500" />
+                          <Edit className="w-3 h-3" />
                         </button>
                         <button
                           onClick={(e) => deleteSession(session.id, e)}
-                          className="p-1 hover:bg-red-100 rounded text-red-500"
+                          className="p-1 text-gray-500 hover:text-gray-800 transition-colors"
                         // disabled={sessions.length <= 1} // REMOVED
                         >
                           <Trash2 className="w-3 h-3" />
@@ -715,10 +715,10 @@ export default function Home() {
                             e.stopPropagation();
                             removeAgent(agent.id);
                           }}
-                          className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="p-1 text-gray-500 hover:text-gray-800 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
                           title="Remove Agent"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
@@ -736,10 +736,10 @@ export default function Home() {
 
                           <button
                             onClick={() => removeAgent(agent.id)}
-                            className="p-1 text-gray-400 hover:text-red-500"
+                            className="p-1 text-gray-500 hover:text-gray-800 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity"
                             title="Remove Agent"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
 
@@ -816,250 +816,251 @@ export default function Home() {
             </div>
           </div>
         </aside>
-      )}
+      )
+      }
 
       {/* Main Chat Area */}
-      {!activeSession ? (
-        <section className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-32 h-32 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center shadow-inner">
-            <MessageSquare className="w-16 h-16 text-blue-400" />
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-3xl font-bold text-gray-800 tracking-tight">No Active Chats</h2>
-            <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
-              Experience the future of collaboration. Create a room and watch your agents interact in a beautiful, floating arena.
-            </p>
-          </div>
-          <button
-            onClick={createSession}
-            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.25rem] font-bold shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 group"
-          >
-            <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-            Create Your First Arena
-          </button>
-        </section>
-      ) : (
-        <section className="flex-1 flex flex-col min-w-0 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 overflow-hidden" >
-          {/* Header */}
-          < header className="h-20 bg-white/40 backdrop-blur-md flex items-center justify-between px-6 md:px-8 border-b border-white/40" >
-            <div className="flex items-center gap-6 md:gap-8">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 -ml-2 hover:bg-gray-100 rounded-lg md:hidden"
-              >
-                <Menu className="w-5 h-5 text-gray-600" />
-              </button>
-              <h1 className="font-extrabold text-base text-gray-800 whitespace-nowrap">Chat Arena</h1>
-              <div className="flex items-center py-1 ml-4 group/icon-list" onMouseLeave={() => setHoveredAgentIndex(null)}>
-                {agents.map((agent, i) => {
-                  const isHovered = hoveredAgentIndex === i;
-                  const isActive = activeAgentIndex === i;
+      {
+        !activeSession ? (
+          <section className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 animate-in fade-in zoom-in-95 duration-500">
+            <div className="w-32 h-32 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center shadow-inner">
+              <MessageSquare className="w-16 h-16 text-blue-400" />
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold text-gray-800 tracking-tight">No Active Chats</h2>
+              <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+                Experience the future of collaboration. Create a room and watch your agents interact in a beautiful, floating arena.
+              </p>
+            </div>
+            <button
+              onClick={createSession}
+              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.25rem] font-bold shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 group"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              Create Your First Arena
+            </button>
+          </section>
+        ) : (
+          <section className="flex-1 flex flex-col min-w-0 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 overflow-hidden" >
+            {/* Header */}
+            < header className="h-20 bg-white/40 backdrop-blur-md flex items-center justify-between px-6 md:px-8 border-b border-white/40" >
+              <div className="flex items-center gap-4 md:gap-8 min-w-0 flex-1">
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 -ml-2 hover:bg-gray-100 rounded-lg md:hidden"
+                >
+                  <Menu className="w-5 h-5 text-gray-600" />
+                </button>
+                <h1 className="font-extrabold text-base text-gray-800 whitespace-nowrap">Chat Arena</h1>
+                <div className="flex items-center py-2 ml-2 md:ml-4 group/icon-list overflow-x-auto no-scrollbar" onMouseLeave={() => setHoveredAgentIndex(null)}>
+                  {agents.map((agent, i) => {
+                    const isHovered = hoveredAgentIndex === i;
+                    const isActive = activeAgentIndex === i;
+
+                    return (
+                      <div
+                        key={agent.id}
+                        onMouseEnter={() => setHoveredAgentIndex(i)}
+                        style={{
+                          transform: `scale(${isActive ? 1.3 : (isHovered ? 1.15 : 1)})`,
+                        }}
+                        className={cn(
+                          "w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm cursor-default",
+                          "transition-all duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]",
+                          // Base overlap
+                          "mx-[-4px]",
+                          // Speaking or Hovered icon gets more space and z-index priority
+                          (isActive || isHovered) ? "z-30 mx-1.5" : "z-10",
+                          isActive && "ring-2 ring-white/50 shadow-lg",
+                          hoveredAgentIndex !== null && !isHovered && "opacity-80",
+                          agent.color
+                        )}
+                        title={agent.name}
+                      >
+                        {agent.name[0]}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Settings"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={clearChat}
+                  className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Clear
+                </button>
+                <button
+                  onClick={toggleAutoChat}
+                  disabled={agents.length < 2}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold transition-all active:scale-95 disabled:opacity-30",
+                    isAutoChatting
+                      ? "text-red-500 hover:bg-red-50/50 hover:text-red-600"
+                      : "text-blue-600 hover:bg-blue-50/50 hover:text-blue-700"
+                  )}
+                >
+                  {isAutoChatting ? (
+                    <>
+                      <Pause className="w-4 h-4 fill-current" />
+                      <span className="hidden md:inline">Stop Auto-Chat</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 fill-current" />
+                      <span className="hidden md:inline">Start Auto-Chat</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </header >
+
+            {/* Messages */}
+            < div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
+            >
+              {
+                messages.length === 0 && !isTyping[activeSessionId] && (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                    <Bot className="w-16 h-16 opacity-20" />
+                    <p>The arena is empty. Start auto-chat to begin the conversation.</p>
+                  </div>
+                )
+              }
+
+              {
+                messages.map((msg) => {
+                  const agent = agents.find(a => a.id === msg.agentId);
+                  const isUser = msg.isUser;
 
                   return (
                     <div
-                      key={agent.id}
-                      onMouseEnter={() => setHoveredAgentIndex(i)}
-                      style={{
-                        transform: `scale(${isActive ? 1.3 : (isHovered ? 1.15 : 1)})`,
-                      }}
+                      key={msg.id}
                       className={cn(
-                        "w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm cursor-default",
-                        "transition-all duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]",
-                        // Base overlap
-                        "mx-[-4px]",
-                        // Speaking or Hovered icon gets more space and z-index priority
-                        (isActive || isHovered) ? "z-30 mx-1.5" : "z-10",
-                        isActive && "ring-2 ring-white/50 shadow-lg",
-                        hoveredAgentIndex !== null && !isHovered && "opacity-80",
-                        agent.color
+                        "flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300",
+                        isUser ? "items-end" : "items-start"
                       )}
-                      title={agent.name}
                     >
-                      {agent.name[0]}
+                      <div className="flex items-center gap-2 mb-1">
+                        {!isUser && (
+                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agent?.color || "bg-gray-400")}>
+                            {msg.agentName}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-gray-400">
+                          {isUser && "You • "}
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <div
+                        className={cn(
+                          "max-w-[80%] shadow-lg p-4 text-gray-800 leading-relaxed whitespace-pre-wrap transition-all",
+                          isUser
+                            ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-3xl rounded-tr-none shadow-blue-500/20"
+                            : "bg-white/90 backdrop-blur-sm rounded-3xl rounded-tl-none border border-white shadow-blue-900/5"
+                        )}
+                      >
+                        {msg.content}
+                      </div>
                     </div>
                   );
-                })}
-              </div>
-            </div>
+                })
+              }
 
-            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Settings"
-              >
-                <Settings2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={clearChat}
-                className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Clear
-              </button>
-              <button
-                onClick={toggleAutoChat}
-                disabled={agents.length < 2}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold transition-all active:scale-95 disabled:opacity-30",
-                  isAutoChatting
-                    ? "text-red-500 hover:bg-red-50/50 hover:text-red-600"
-                    : "text-blue-600 hover:bg-blue-50/50 hover:text-blue-700"
-                )}
-              >
-                {isAutoChatting ? (
-                  <>
-                    <Pause className="w-4 h-4 fill-current" />
-                    <span className="hidden md:inline">Stop Auto-Chat</span>
-                    <span className="md:hidden">Stop</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 fill-current" />
-                    <span className="hidden md:inline">Start Auto-Chat</span>
-                    <span className="md:hidden">Start</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </header >
-
-          {/* Messages */}
-          < div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
-          >
-            {
-              messages.length === 0 && !isTyping[activeSessionId] && (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-                  <Bot className="w-16 h-16 opacity-20" />
-                  <p>The arena is empty. Start auto-chat to begin the conversation.</p>
-                </div>
-              )
-            }
-
-            {
-              messages.map((msg) => {
-                const agent = agents.find(a => a.id === msg.agentId);
-                const isUser = msg.isUser;
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300",
-                      isUser ? "items-end" : "items-start"
-                    )}
-                  >
+              {
+                isTyping[activeSessionId] && (
+                  <div className="flex flex-col animate-pulse">
                     <div className="flex items-center gap-2 mb-1">
-                      {!isUser && (
-                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agent?.color || "bg-gray-400")}>
-                          {msg.agentName}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-gray-400">
-                        {isUser && "You • "}
-                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agents[activeAgentIndex]?.color)}>
+                        {agents[activeAgentIndex]?.name} is thinking...
                       </span>
                     </div>
-                    <div
-                      className={cn(
-                        "max-w-[80%] shadow-lg p-4 text-gray-800 leading-relaxed whitespace-pre-wrap transition-all",
-                        isUser
-                          ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-3xl rounded-tr-none shadow-blue-500/20"
-                          : "bg-white/90 backdrop-blur-sm rounded-3xl rounded-tl-none border border-white shadow-blue-900/5"
-                      )}
-                    >
-                      {msg.content}
+                    <div className="w-16 h-10 bg-gray-200 rounded-2xl rounded-tl-none flex items-center justify-center gap-1">
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
                     </div>
                   </div>
-                );
-              })
-            }
+                )
+              }
+            </div >
 
-            {
-              isTyping[activeSessionId] && (
-                <div className="flex flex-col animate-pulse">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agents[activeAgentIndex]?.color)}>
-                      {agents[activeAgentIndex]?.name} is thinking...
-                    </span>
-                  </div>
-                  <div className="w-16 h-10 bg-gray-200 rounded-2xl rounded-tl-none flex items-center justify-center gap-1">
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
-                  </div>
-                </div>
-              )
-            }
-          </div >
-
-          {/* Input Area */}
-          <div className="p-6 bg-gradient-to-t from-gray-50/80 to-transparent relative" >
-            {showMentions && filteredAgents.length > 0 && (
-              <div
-                ref={mentionPopupRef}
-                className="absolute bottom-full left-6 mb-1 w-60 bg-white/70 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-90 slide-in-from-bottom-5 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-              >
-                <div className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400/60 border-b border-white/20">
-                  Mention Agent
-                </div>
+            {/* Input Area */}
+            <div className="p-6 bg-gradient-to-t from-gray-50/80 to-transparent relative" >
+              {showMentions && filteredAgents.length > 0 && (
                 <div
-                  ref={mentionListRef}
-                  className="p-1 max-h-[180px] overflow-y-auto no-scrollbar"
+                  ref={mentionPopupRef}
+                  className="absolute bottom-full left-6 mb-1 w-60 bg-white/70 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-90 slide-in-from-bottom-5 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
                 >
-                  {filteredAgents.map((agent, i) => (
-                    <button
-                      key={agent.id}
-                      onClick={() => selectAgent(agent)}
-                      className={cn(
-                        "w-full text-left px-3 py-1.5 text-xs rounded-lg flex items-center gap-2 transition-all active:scale-[0.98]",
-                        i === mentionIndex
-                          ? "bg-white/50 text-gray-900 font-bold shadow-sm"
-                          : "text-gray-400 hover:text-gray-600 hover:bg-white/30 shadow-none border-none"
-                      )}
-                    >
-                      <div className={cn("w-1.5 h-1.5 rounded-full", agent.color)} />
-                      <span className="truncate">{agent.name}</span>
-                    </button>
-                  ))}
+                  <div className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400/60 border-b border-white/20">
+                    Mention Agent
+                  </div>
+                  <div
+                    ref={mentionListRef}
+                    className="p-1 max-h-[180px] overflow-y-auto no-scrollbar"
+                  >
+                    {filteredAgents.map((agent, i) => (
+                      <button
+                        key={agent.id}
+                        onClick={() => selectAgent(agent)}
+                        className={cn(
+                          "w-full text-left px-3 py-1.5 text-xs rounded-lg flex items-center gap-2 transition-all active:scale-[0.98]",
+                          i === mentionIndex
+                            ? "bg-white/50 text-gray-900 font-bold shadow-sm"
+                            : "text-gray-400 hover:text-gray-600 hover:bg-white/30 shadow-none border-none"
+                        )}
+                      >
+                        <div className={cn("w-1.5 h-1.5 rounded-full", agent.color)} />
+                        <span className="truncate">{agent.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-2 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:bg-white/95 focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:shadow-blue-500/10 transition-all duration-300">
-              <textarea
-                ref={inputRef}
-                value={inputValue}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                placeholder="Type a message... (Use @ to mention an agent)"
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[36px] py-1.5 px-0 text-sm"
-                rows={1}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isTyping[activeSessionId]}
-                className={cn(
-                  "p-2 bg-transparent rounded-xl transition-all active:scale-90",
-                  inputValue.trim()
-                    ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                    : "text-blue-600 opacity-40",
-                  isTyping[activeSessionId] && "opacity-30 cursor-not-allowed"
-                )}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="text-[10px] text-gray-400 mt-2 text-center">
-              Use <strong>@AgentName</strong> to force a reply from a specific agent.
-            </div>
-          </div >
-        </section >
-      )}
-    </main>
+              <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-2 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:bg-white/95 focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:shadow-blue-500/10 transition-all duration-300">
+                <textarea
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={() => setIsComposing(false)}
+                  placeholder="Type a message... (Use @ to mention an agent)"
+                  className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[36px] py-1.5 px-0 text-sm"
+                  rows={1}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isTyping[activeSessionId]}
+                  className={cn(
+                    "p-2 bg-transparent rounded-xl transition-all active:scale-90",
+                    inputValue.trim()
+                      ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                      : "text-blue-600 opacity-40",
+                    isTyping[activeSessionId] && "opacity-30 cursor-not-allowed"
+                  )}
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="text-[10px] text-gray-400 mt-2 text-center">
+                Use <strong>@AgentName</strong> to force a reply from a specific agent.
+              </div>
+            </div >
+          </section >
+        )
+      }
+    </main >
   );
 }
