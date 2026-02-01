@@ -52,8 +52,8 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-6 border-b">
+      <div className="bg-white/80 backdrop-blur-2xl rounded-3xl w-full max-w-2xl shadow-2xl border border-white/40 overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
+        <div className="flex justify-between items-center p-6 border-b border-white/20 bg-white/20">
           <h2 className="text-xl font-bold">API Configuration</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X className="w-5 h-5" />
@@ -62,16 +62,16 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
 
         <div className="flex flex-1 min-h-0">
           {/* Sidebar Tabs */}
-          <div className="w-48 bg-gray-50 border-r overflow-y-auto">
+          <div className="w-48 bg-white/10 border-r border-white/20 overflow-y-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "w-full text-left px-4 py-3 text-sm font-medium transition-colors border-l-4",
+                  "w-full text-left px-4 py-3 text-sm font-medium transition-colors border-l-2",
                   activeTab === tab.id
-                    ? "bg-white border-blue-600 text-blue-700 shadow-sm"
-                    : "border-transparent text-gray-600 hover:bg-gray-100"
+                    ? "bg-white border-blue-600 text-blue-700 shadow-none"
+                    : "border-transparent text-gray-400 hover:bg-gray-100/50"
                 )}
               >
                 {tab.label}
@@ -104,7 +104,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                       value={config[activeTab].apiKey}
                       onChange={(e) => updateConfig(activeTab, "apiKey", e.target.value)}
                       placeholder={`sk-...`}
-                      className="w-full border rounded-lg pl-3 pr-10 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                      className="w-full bg-gray-50 border border-transparent rounded-lg pl-3 pr-10 py-2.5 focus:bg-white focus:border-blue-500 hover:border-gray-200 focus:ring-2 focus:ring-blue-500/10 outline-none font-mono text-sm transition-all"
                     />
                     <button
                       onClick={() => setShowKey(!showKey)}
@@ -127,7 +127,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                     value={config[activeTab].baseUrl}
                     onChange={(e) => updateConfig(activeTab, "baseUrl", e.target.value)}
                     placeholder="http://localhost:1234/v1"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                    className="w-full bg-gray-50 border border-transparent rounded-lg px-3 py-2.5 focus:bg-white focus:border-blue-500 hover:border-gray-200 focus:ring-2 focus:ring-blue-500/10 outline-none font-mono text-sm transition-all"
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     The endpoint compatible with OpenAI&apos;s /chat/completions format.
@@ -156,7 +156,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
           </div>
         </div>
 
-        <div className="p-4 bg-gray-50 border-t flex justify-end gap-2">
+        <div className="p-6 bg-white/20 border-t border-white/20 flex justify-end gap-3">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"

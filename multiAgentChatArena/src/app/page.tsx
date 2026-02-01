@@ -483,7 +483,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden relative">
+    <main className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50/50 text-gray-900 overflow-hidden relative">
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -502,19 +502,19 @@ export default function Home() {
       {/* Sidebar: Agent Configuration */}
       {sessions.length > 0 && (
         <aside className={cn(
-          "w-80 bg-gray-50 flex flex-col shadow-none fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-gray-100",
+          "w-80 bg-white/70 backdrop-blur-xl flex flex-col fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-white/40 shadow-2xl shadow-blue-900/5",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           {/* Sessions Section */}
-          <div className="flex flex-col border-b h-1/3 min-h-[200px]">
-            <div className="h-16 px-4 border-b flex justify-between items-center bg-gray-50/50">
+          <div className="flex flex-col h-1/3 min-h-[200px] border-b border-white/20">
+            <div className="h-16 px-4 flex justify-between items-center bg-white/20 backdrop-blur-sm">
               <h2 className="font-bold text-sm text-gray-700 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-gray-500" />
                 Chat Rooms
               </h2>
               <button
                 onClick={createSession}
-                className="p-1.5 hover:bg-gray-200 rounded-md transition-colors text-blue-600"
+                className="p-2 hover:bg-white/50 rounded-xl transition-all hover:shadow-sm text-blue-600 active:scale-95"
                 title="New Chat"
               >
                 <Plus className="w-4 h-4" />
@@ -526,15 +526,17 @@ export default function Home() {
                   key={session.id}
                   onClick={() => setActiveSessionId(session.id)}
                   className={cn(
-                    "p-2 rounded-lg cursor-pointer flex items-center justify-between group text-sm transition-colors",
-                    activeSessionId === session.id ? "bg-blue-50 border-blue-100 text-blue-700" : "hover:bg-gray-50 text-gray-700"
+                    "p-3 rounded-xl cursor-pointer flex items-center justify-between group text-sm transition-all duration-200 border transform active:scale-[0.97] hover:scale-[1.01]",
+                    activeSessionId === session.id
+                      ? "bg-white/40 backdrop-blur-sm text-gray-900 shadow-lg shadow-gray-400/20 border-white/60"
+                      : "bg-transparent border-transparent hover:border-white/40 hover:shadow-md text-gray-500 hover:text-gray-800"
                   )}
                 >
                   {editingSessionId === session.id ? (
                     <div className="flex items-center gap-1 w-full">
                       <input
                         autoFocus
-                        className="bg-white border rounded px-1 py-0.5 w-full text-xs"
+                        className="bg-white/80 backdrop-blur-sm border border-blue-200/50 rounded-lg px-2 py-1 w-full text-xs outline-none focus:ring-2 focus:ring-blue-500/10"
                         value={newSessionName}
                         onChange={(e) => setNewSessionName(e.target.value)}
                         onKeyDown={(e) => {
@@ -543,7 +545,7 @@ export default function Home() {
                         }}
                         onClick={(e) => e.stopPropagation()}
                       />
-                      <button onClick={(e) => { e.stopPropagation(); saveSessionName(session.id); }} className="text-green-600"><Check className="w-3 h-3" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); saveSessionName(session.id); }} className="p-1 hover:bg-green-50 rounded-md text-green-600 transition-colors"><Check className="w-3.5 h-3.5" /></button>
                     </div>
                   ) : (
                     <>
@@ -571,7 +573,7 @@ export default function Home() {
           </div>
 
           {/* Agents Section Header */}
-          <div className="h-16 px-4 border-b flex justify-between items-center bg-white sticky top-0 z-10" >
+          <div className="h-16 px-4 border-b border-white/20 flex justify-between items-center bg-white/20 backdrop-blur-sm sticky top-0 z-10" >
             <h2 className="font-bold text-xl flex items-center gap-2">
               <Bot className="w-6 h-6 text-blue-600" />
               Agents
@@ -604,7 +606,7 @@ export default function Home() {
               const isCollapsed = collapsedAgents.has(agent.id);
 
               return (
-                <div key={agent.id} className="border rounded-xl bg-gray-50 relative group transition-all duration-200 overflow-hidden">
+                <div key={agent.id} className="rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg shadow-blue-900/5 border border-white/60 relative group transition-all duration-300 overflow-hidden hover:shadow-xl hover:shadow-blue-900/10 hover:scale-[1.02] active:scale-[0.99]">
                   {/* COLLAPSED VIEW */}
                   {isCollapsed ? (
                     <div
@@ -748,7 +750,7 @@ export default function Home() {
       ) : (
         <section className="flex-1 flex flex-col min-w-0" >
           {/* Header */}
-          < header className="h-16 border-b bg-white flex items-center justify-between px-4 md:px-6 shadow-sm" >
+          < header className="h-16 bg-white/40 backdrop-blur-md flex items-center justify-between px-4 md:px-6 border-b border-white/40 shadow-sm" >
             <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
               <button
                 onClick={() => setIsSidebarOpen(true)}
@@ -856,10 +858,10 @@ export default function Home() {
                     </div>
                     <div
                       className={cn(
-                        "max-w-[80%] border shadow-sm p-4 text-gray-800 leading-relaxed whitespace-pre-wrap",
+                        "max-w-[80%] shadow-lg p-4 text-gray-800 leading-relaxed whitespace-pre-wrap transition-all",
                         isUser
-                          ? "bg-blue-600 text-white rounded-2xl rounded-tr-none border-blue-600"
-                          : "bg-white rounded-2xl rounded-tl-none"
+                          ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-3xl rounded-tr-none shadow-blue-500/20"
+                          : "bg-white/90 backdrop-blur-sm rounded-3xl rounded-tl-none border border-white shadow-blue-900/5"
                       )}
                     >
                       {msg.content}
@@ -888,10 +890,10 @@ export default function Home() {
           </div >
 
           {/* Input Area */}
-          < div className="p-4 bg-white border-t relative" >
+          <div className="p-6 bg-gradient-to-t from-gray-50/80 to-transparent relative" >
             {showMentions && filteredAgents.length > 0 && (
-              <div className="absolute bottom-full left-4 mb-2 w-64 bg-white border rounded-lg shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-150">
-                <div className="p-2 bg-gray-50 text-xs font-semibold text-gray-500 border-b">
+              <div className="absolute bottom-full left-6 mb-3 w-64 bg-white/90 backdrop-blur-xl border border-white/60 rounded-2xl shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 bg-white/50 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-white/20">
                   Mention an Agent
                 </div>
                 <div className="max-h-48 overflow-y-auto">
@@ -900,11 +902,11 @@ export default function Home() {
                       key={agent.id}
                       onClick={() => selectAgent(agent)}
                       className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2 transition-colors",
-                        i === mentionIndex && "bg-blue-50 text-blue-700"
+                        "w-full text-left px-4 py-2.5 text-sm hover:bg-blue-500 hover:text-white flex items-center gap-3 transition-all",
+                        i === mentionIndex && "bg-blue-500 text-white"
                       )}
                     >
-                      <div className={cn("w-2 h-2 rounded-full", agent.color)} />
+                      <div className={cn("w-2.5 h-2.5 rounded-full border border-white/20", agent.color)} />
                       {agent.name}
                     </button>
                   ))}
@@ -912,7 +914,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-2 bg-gray-100 rounded-xl p-2 border focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 transition-all">
               <textarea
                 ref={inputRef}
                 value={inputValue}
