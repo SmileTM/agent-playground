@@ -127,10 +127,29 @@ export default function Home() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mentionListRef = useRef<HTMLDivElement>(null);
 
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [hoveredAgentIndex, setHoveredAgentIndex] = useState<number | null>(null);
 
+  // Auto-scroll mention list when selection changes
+  useEffect(() => {
+    if (showMentions && mentionListRef.current) {
+      const activeItem = mentionListRef.current.children[mentionIndex] as HTMLElement;
+      if (activeItem) {
+        const container = mentionListRef.current;
+        const scrollOffset = activeItem.offsetTop - container.offsetTop;
+
+        if (scrollOffset < container.scrollTop) {
+          container.scrollTop = scrollOffset;
+        } else if (scrollOffset + activeItem.offsetHeight > container.scrollTop + container.clientHeight) {
+          container.scrollTop = scrollOffset + activeItem.offsetHeight - container.clientHeight;
+        }
+      }
+    }
+  }, [mentionIndex, showMentions]);
+
+  // Collapsible Agents
   const toggleAgentCollapse = (agentId: string) => {
     setCollapsedAgents(prev => {
       const newSet = new Set(prev);
@@ -443,7 +462,7 @@ export default function Home() {
     const newSession: ChatSession = {
       id: Date.now().toString(),
       name: `New Chat ${sessions.length + 1}`,
-      agents: INITIAL_AGENTS,
+      agents: [],
       messages: [],
       isAutoChatting: false,
       activeAgentIndex: 0,
@@ -601,9 +620,22 @@ export default function Home() {
             </div >
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {!activeSession && (
-                <div className="text-center py-10 text-gray-400 italic font-medium">
-                  Select or Create a Chat
+              {activeSession && agents.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-4">
+                  <div className="w-16 h-16 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-white/60 mb-2">
+                    <Bot className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-gray-800">No Agents Yet</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">Add agents to start the conversation.</p>
+                  </div>
+                  <button
+                    onClick={addAgent}
+                    className="mt-4 px-6 py-2.5 bg-white/60 backdrop-blur-md text-gray-800 text-xs font-extrabold rounded-xl border border-white/80 shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Agent
+                  </button>
                 </div>
               )}
               {activeSession && agents.map((agent) => {
@@ -912,22 +944,27 @@ export default function Home() {
           {/* Input Area */}
           <div className="p-6 bg-gradient-to-t from-gray-50/80 to-transparent relative" >
             {showMentions && filteredAgents.length > 0 && (
-              <div className="absolute bottom-full left-6 mb-3 w-64 bg-white/90 backdrop-blur-xl border border-white/60 rounded-2xl shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
-                <div className="p-3 bg-white/50 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-white/20">
-                  Mention an Agent
+              <div className="absolute bottom-full left-6 mb-4 w-60 bg-white/70 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-90 slide-in-from-bottom-5 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]">
+                <div className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400/60 border-b border-white/20">
+                  Mention Agent
                 </div>
-                <div className="max-h-48 overflow-y-auto">
+                <div
+                  ref={mentionListRef}
+                  className="p-1 max-h-[180px] overflow-y-auto no-scrollbar"
+                >
                   {filteredAgents.map((agent, i) => (
                     <button
                       key={agent.id}
                       onClick={() => selectAgent(agent)}
                       className={cn(
-                        "w-full text-left px-4 py-2.5 text-sm hover:bg-blue-500 hover:text-white flex items-center gap-3 transition-all",
-                        i === mentionIndex && "bg-blue-500 text-white"
+                        "w-full text-left px-3 py-1.5 text-xs rounded-lg flex items-center gap-2 transition-all active:scale-[0.98]",
+                        i === mentionIndex
+                          ? "bg-white/50 text-gray-900 font-bold shadow-sm"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-white/30 shadow-none border-none"
                       )}
                     >
-                      <div className={cn("w-2.5 h-2.5 rounded-full border border-white/20", agent.color)} />
-                      {agent.name}
+                      <div className={cn("w-1.5 h-1.5 rounded-full", agent.color)} />
+                      <span className="truncate">{agent.name}</span>
                     </button>
                   ))}
                 </div>
