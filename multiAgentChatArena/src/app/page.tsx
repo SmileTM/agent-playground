@@ -384,27 +384,33 @@ export default function Home() {
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      void handleSendMessage();
     }
   };
 
   const selectAgent = (agent: Agent) => {
     const words = inputValue.split(" ");
-    words.pop(); // Remove the partial @mention
-    const newValue = words.join(" ") + (words.length > 0 ? " " : "") + `@${agent.name} `;
-    setInputValue(newValue);
+    // Find the last word starting with @ and replace it
+    const lastAtIdx = inputValue.lastIndexOf("@");
+    if (lastAtIdx !== -1) {
+      const newVal = inputValue.substring(0, lastAtIdx) + `@${agent.name} `;
+      setInputValue(newVal);
+    } else {
+      setInputValue(prev => prev + `@${agent.name} `);
+    }
     setShowMentions(false);
     inputRef.current?.focus();
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    const currentInputValue = inputValue.trim();
     const newMessage: Message = {
       id: Date.now().toString(),
       agentId: "user",
       agentName: "You",
-      content: inputValue.trim(),
+      content: currentInputValue,
       timestamp: Date.now(),
       isUser: true,
     };
@@ -419,21 +425,25 @@ export default function Home() {
       return s;
     }));
 
-    // Check for mentions to trigger specific response
-    const mentionedAgent = agents.find(a => inputValue.includes(`@${a.name}`));
+    // Identify all mentioned agents
+    const mentionedAgents = agents.filter(a => currentInputValue.includes(`@${a.name}`));
 
     // Add to history
     setInputHistory(prev => [inputValue, ...prev.filter(h => h !== inputValue)].slice(0, 50));
     setHistoryIndex(-1);
     setInputValue("");
 
-    if (mentionedAgent) {
-      setTimeout(() => {
-        const agentIndex = agents.findIndex(a => a.id === mentionedAgent.id);
+    if (mentionedAgents.length > 0) {
+      // Trigger sequential responses for all mentioned agents
+      for (const agent of mentionedAgents) {
+        const agentIndex = agents.findIndex(a => a.id === agent.id);
         if (agentIndex !== -1) {
-          getNextResponse(activeSessionId, agentIndex, updatedMessages);
+          await getNextResponse(activeSessionId, agentIndex);
         }
-      }, 500);
+      }
+    } else {
+      // Fallback to active agent if none mentioned
+      await getNextResponse(activeSessionId);
     }
   };
 
