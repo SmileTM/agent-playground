@@ -128,6 +128,7 @@ export default function Home() {
   const [tempInput, setTempInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
+  const mentionPopupRef = useRef<HTMLDivElement>(null);
 
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [hoveredAgentIndex, setHoveredAgentIndex] = useState<number | null>(null);
@@ -148,6 +149,22 @@ export default function Home() {
       }
     }
   }, [mentionIndex, showMentions]);
+
+  // Click outside to close mentions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showMentions && mentionPopupRef.current && !mentionPopupRef.current.contains(event.target as Node)) {
+        setShowMentions(false);
+      }
+    };
+
+    if (showMentions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMentions]);
 
   // Collapsible Agents
   const toggleAgentCollapse = (agentId: string) => {
@@ -944,7 +961,10 @@ export default function Home() {
           {/* Input Area */}
           <div className="p-6 bg-gradient-to-t from-gray-50/80 to-transparent relative" >
             {showMentions && filteredAgents.length > 0 && (
-              <div className="absolute bottom-full left-6 mb-4 w-60 bg-white/70 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-90 slide-in-from-bottom-5 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]">
+              <div
+                ref={mentionPopupRef}
+                className="absolute bottom-full left-6 mb-1 w-60 bg-white/70 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-90 slide-in-from-bottom-5 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
+              >
                 <div className="px-5 py-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400/60 border-b border-white/20">
                   Mention Agent
                 </div>
@@ -971,14 +991,14 @@ export default function Home() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-3xl p-3 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:bg-white/95 focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:shadow-blue-500/10 transition-all duration-300">
+            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-2 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:bg-white/95 focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:shadow-blue-500/10 transition-all duration-300">
               <textarea
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message... (Use @ to mention an agent)"
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[44px] py-2.5 px-2 text-sm"
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[36px] py-1.5 px-0 text-sm"
                 rows={1}
               />
               <button
@@ -986,7 +1006,9 @@ export default function Home() {
                 disabled={!inputValue.trim() || isTyping[activeSessionId]}
                 className={cn(
                   "p-2 bg-transparent rounded-xl transition-all active:scale-90",
-                  inputValue.trim() ? "text-gray-500" : "text-blue-600 opacity-40",
+                  inputValue.trim()
+                    ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                    : "text-blue-600 opacity-40",
                   isTyping[activeSessionId] && "opacity-30 cursor-not-allowed"
                 )}
               >

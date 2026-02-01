@@ -51,8 +51,14 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4 animate-in fade-in duration-500">
-      <div className="bg-white/75 backdrop-blur-xl rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-white/60 overflow-hidden animate-in zoom-in-90 slide-in-from-bottom-20 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] flex flex-col max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4 animate-in fade-in duration-500"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white/75 backdrop-blur-xl rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-white/60 overflow-hidden animate-in zoom-in-90 slide-in-from-bottom-20 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] flex flex-col max-h-[85vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header Island */}
         <div className="flex justify-between items-center px-8 py-6">
           <h2 className="text-xl font-extrabold text-gray-800 tracking-tight">API Configuration</h2>
