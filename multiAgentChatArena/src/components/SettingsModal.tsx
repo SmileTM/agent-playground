@@ -51,27 +51,28 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white/80 backdrop-blur-2xl rounded-3xl w-full max-w-2xl shadow-2xl border border-white/40 overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-6 border-b border-white/20 bg-white/20">
-          <h2 className="text-xl font-bold">API Configuration</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4 animate-in fade-in duration-500">
+      <div className="bg-white/75 backdrop-blur-xl rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-white/60 overflow-hidden animate-in zoom-in-90 slide-in-from-bottom-20 duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] flex flex-col max-h-[85vh]">
+        {/* Header Island */}
+        <div className="flex justify-between items-center px-8 py-6">
+          <h2 className="text-xl font-extrabold text-gray-800 tracking-tight">API Configuration</h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 transition-all active:scale-95">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Sidebar Tabs */}
-          <div className="w-48 bg-white/10 border-r border-white/20 overflow-y-auto">
+        <div className="flex flex-1 min-h-0 px-6 pb-4 gap-4">
+          {/* Sidebar Tabs Island */}
+          <div className="w-40 flex flex-col gap-1 py-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "w-full text-left px-4 py-3 text-sm font-medium transition-colors border-l-2",
+                  "w-full text-left px-4 py-2.5 text-sm font-bold rounded-2xl transition-all active:scale-95",
                   activeTab === tab.id
-                    ? "bg-white border-blue-600 text-blue-700 shadow-none"
-                    : "border-transparent text-gray-400 hover:bg-gray-100/50"
+                    ? "text-gray-900"
+                    : "text-gray-400 hover:text-gray-600"
                 )}
               >
                 {tab.label}
@@ -79,47 +80,43 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
             ))}
           </div>
 
-          {/* Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold capitalize">{tabs.find(t => t.id === activeTab)?.label} Settings</h3>
+          {/* Content Area */}
+          <div className="flex-1 overflow-y-auto no-scrollbar py-1">
+            <div className="space-y-6 px-2">
+              <div className="flex items-center justify-between ">
+                <h3 className="text-lg font-extrabold text-gray-800 tracking-tight capitalize">{tabs.find(t => t.id === activeTab)?.label} Settings</h3>
                 <button
                   onClick={() => resetProvider(activeTab)}
-                  className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1"
-                  title="Reset Base URL to default"
+                  className="text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-900 transition-all active:scale-95 flex items-center gap-1.5"
                 >
-                  <RotateCcw className="w-3 h-3" /> Reset Default URL
+                  <RotateCcw className="w-3 h-3" /> Reset
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="space-y-6">
+                <div className="space-y-2.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 ml-1">
                     API Key
                   </label>
-                  <div className="relative">
+                  <div className="relative group">
                     <input
                       type={showKey ? "text" : "password"}
                       value={config[activeTab].apiKey}
                       onChange={(e) => updateConfig(activeTab, "apiKey", e.target.value)}
                       placeholder={`sk-...`}
-                      className="w-full bg-gray-50 border border-transparent rounded-lg pl-3 pr-10 py-2.5 focus:bg-white focus:border-blue-500 hover:border-gray-200 focus:ring-2 focus:ring-blue-500/10 outline-none font-mono text-sm transition-all"
+                      className="w-full bg-white/5 rounded-2xl pl-4 pr-12 py-2.5 focus:bg-white/30 focus:-translate-y-0.5 focus:shadow-2xl focus:shadow-blue-500/10 outline-none font-mono text-sm transition-all"
                     />
                     <button
                       onClick={() => setShowKey(!showKey)}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 p-1 transition-colors"
                     >
                       {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Required for real responses.
-                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 ml-1">
                     Base URL
                   </label>
                   <input
@@ -127,48 +124,43 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                     value={config[activeTab].baseUrl}
                     onChange={(e) => updateConfig(activeTab, "baseUrl", e.target.value)}
                     placeholder="http://localhost:1234/v1"
-                    className="w-full bg-gray-50 border border-transparent rounded-lg px-3 py-2.5 focus:bg-white focus:border-blue-500 hover:border-gray-200 focus:ring-2 focus:ring-blue-500/10 outline-none font-mono text-sm transition-all"
+                    className="w-full bg-white/5 rounded-2xl px-4 py-2.5 focus:bg-white/30 focus:-translate-y-0.5 focus:shadow-2xl focus:shadow-blue-500/10 outline-none font-mono text-sm transition-all"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    The endpoint compatible with OpenAI&apos;s /chat/completions format.
-                  </p>
                 </div>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
-                <p className="font-semibold mb-1">Supported Models:</p>
-                {activeTab === "openai" && <ul className="list-disc list-inside opacity-80"><li>gpt-3.5-turbo</li><li>gpt-4</li></ul>}
-                {activeTab === "google" && <ul className="list-disc list-inside opacity-80"><li>gemini-pro</li><li>gemini-2.5-flash</li></ul>}
-                {activeTab === "moonshot" && <ul className="list-disc list-inside opacity-80"><li>moonshot-v1-8k</li></ul>}
-                {activeTab === "alibaba" && <ul className="list-disc list-inside opacity-80"><li>qwen-turbo</li></ul>}
-                {activeTab === "local" && (
-                  <div>
-                    <p className="mb-1">Universal endpoint for:</p>
-                    <ul className="list-disc list-inside opacity-80 text-xs">
-                      <li>Ollama / LM Studio</li>
-                      <li>Any OpenAI-compatible API</li>
-                      <li>Custom model names per agent</li>
-                    </ul>
-                  </div>
-                )}
+              <div className="pt-4 border-t border-white/20 space-y-2">
+                <p className="font-bold text-[10px] text-gray-400 uppercase tracking-[0.2em]">Supported Models</p>
+                <div className="opacity-90 leading-relaxed font-medium text-[11px] text-gray-500">
+                  {activeTab === "openai" && <p>gpt-3.5-turbo, gpt-4, gpt-4o</p>}
+                  {activeTab === "google" && <p>gemini-pro, gemini-2.5-flash, gemini-1.5-pro</p>}
+                  {activeTab === "moonshot" && <p>moonshot-v1-8k</p>}
+                  {activeTab === "alibaba" && <p>qwen-turbo, qwen-plus, qwen-max</p>}
+                  {activeTab === "local" && (
+                    <div className="space-y-1">
+                      <p>Ollama, LM Studio, etc.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-6 bg-white/20 border-t border-white/20 flex justify-end gap-3">
+        {/* Footer */}
+        <div className="px-8 py-5 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+            className="px-5 py-2.5 text-gray-400 font-bold hover:text-gray-900 transition-all active:scale-95 text-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-5 py-2.5 bg-transparent text-gray-400 font-bold hover:text-gray-900 transition-all active:scale-95 flex items-center gap-2 text-sm"
           >
             <Save className="w-4 h-4" />
-            Save Configuration
+            Save Changes
           </button>
         </div>
       </div>

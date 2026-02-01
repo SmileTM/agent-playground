@@ -14,8 +14,10 @@ body {
 }
 
 ::selection {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: rgb(29, 78, 216);
+  background-color: rgba(0, 0, 0, 0.08);
+  /* Soft neutral gray */
+  color: inherit;
+  /* Maintain original text color */
 }
 
 /* Custom Scrollbar for a borderless look */
