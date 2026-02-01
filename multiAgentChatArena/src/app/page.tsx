@@ -129,6 +129,7 @@ export default function Home() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
+  const [hoveredAgentIndex, setHoveredAgentIndex] = useState<number | null>(null);
 
   const toggleAgentCollapse = (agentId: string) => {
     setCollapsedAgents(prev => {
@@ -483,7 +484,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50/50 text-gray-900 overflow-hidden relative">
+    <main className="h-screen w-full flex overflow-hidden bg-slate-100 p-3 lg:p-4 gap-4 transition-all duration-300">
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -502,25 +503,26 @@ export default function Home() {
       {/* Sidebar: Agent Configuration */}
       {sessions.length > 0 && (
         <aside className={cn(
-          "w-80 bg-white/70 backdrop-blur-xl flex flex-col fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-white/40 shadow-2xl shadow-blue-900/5",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "w-80 flex flex-col gap-4 z-40 transform transition-all duration-500",
+          "fixed inset-y-4 left-4 md:relative md:inset-0",
+          isSidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 md:translate-x-0 md:opacity-100"
         )}>
-          {/* Sessions Section */}
-          <div className="flex flex-col h-1/3 min-h-[200px] border-b border-white/20">
-            <div className="h-16 px-4 flex justify-between items-center bg-white/20 backdrop-blur-sm">
-              <h2 className="font-bold text-sm text-gray-700 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-gray-500" />
+          {/* Sessions Section Island */}
+          <div className="flex flex-col h-[40%] bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-xl shadow-blue-900/5 overflow-hidden">
+            <div className="h-20 px-6 flex justify-between items-center bg-white/20 backdrop-blur-sm border-b border-white/10">
+              <h2 className="font-extrabold text-base text-gray-800 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-gray-500" />
                 Chat Rooms
               </h2>
               <button
                 onClick={createSession}
-                className="p-2 hover:bg-white/50 rounded-xl transition-all hover:shadow-sm text-blue-600 active:scale-95"
+                className="p-2 bg-transparent text-gray-400 hover:text-gray-900 transition-all active:scale-90"
                 title="New Chat"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
               {sessions.map(session => (
                 <div
                   key={session.id}
@@ -536,7 +538,7 @@ export default function Home() {
                     <div className="flex items-center gap-1 w-full">
                       <input
                         autoFocus
-                        className="bg-white/80 backdrop-blur-sm border border-blue-200/50 rounded-lg px-2 py-1 w-full text-xs outline-none focus:ring-2 focus:ring-blue-500/10"
+                        className="bg-white/80 backdrop-blur-sm border border-white/60 rounded-lg px-2 py-1 w-full text-xs outline-none shadow-sm"
                         value={newSessionName}
                         onChange={(e) => setNewSessionName(e.target.value)}
                         onKeyDown={(e) => {
@@ -572,207 +574,225 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Agents Section Header */}
-          <div className="h-16 px-4 border-b border-white/20 flex justify-between items-center bg-white/20 backdrop-blur-sm sticky top-0 z-10" >
-            <h2 className="font-bold text-xl flex items-center gap-2">
-              <Bot className="w-6 h-6 text-blue-600" />
-              Agents
-            </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={addAgent}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-blue-600"
-                title="Add Agent"
-                disabled={!activeSession} // Disable if no session
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 md:hidden"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div >
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {!activeSession && (
-              <div className="text-center py-10 text-gray-400 italic font-medium">
-                Select or Create a Chat
+          {/* Agents Section Island */}
+          <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-xl shadow-blue-900/5 overflow-hidden min-h-0">
+            {/* Header */}
+            <div className="h-20 px-6 flex justify-between items-center bg-white/20 backdrop-blur-sm border-b border-white/10 sticky top-0 z-10" >
+              <h2 className="font-extrabold text-base text-gray-800 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-blue-600" />
+                Agents
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={addAgent}
+                  className="p-2 bg-transparent text-gray-400 hover:text-gray-900 transition-all active:scale-90 disabled:opacity-20"
+                  title="Add Agent"
+                  disabled={!activeSession} // Disable if no session
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 md:hidden"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            )}
-            {activeSession && agents.map((agent) => {
-              const isCollapsed = collapsedAgents.has(agent.id);
+            </div >
 
-              return (
-                <div key={agent.id} className="rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg shadow-blue-900/5 border border-white/60 relative group transition-all duration-300 overflow-hidden hover:shadow-xl hover:shadow-blue-900/10 hover:scale-[1.02] active:scale-[0.99]">
-                  {/* COLLAPSED VIEW */}
-                  {isCollapsed ? (
-                    <div
-                      className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => toggleAgentCollapse(agent.id)}
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0", agent.color)}>
-                        {agent.name[0].toUpperCase()}
-                      </div>
-                      <span className="flex-1 font-medium text-sm truncate select-none text-gray-700">
-                        {agent.name}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeAgent(agent.id);
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remove Agent"
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {!activeSession && (
+                <div className="text-center py-10 text-gray-400 italic font-medium">
+                  Select or Create a Chat
+                </div>
+              )}
+              {activeSession && agents.map((agent) => {
+                const isCollapsed = collapsedAgents.has(agent.id);
+
+                return (
+                  <div key={agent.id} className="rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg shadow-blue-900/5 border border-white/60 relative group transition-all duration-300 overflow-hidden hover:shadow-xl hover:shadow-blue-900/10 hover:scale-[1.02] active:scale-[0.99]">
+                    {/* COLLAPSED VIEW */}
+                    {isCollapsed ? (
+                      <div
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => toggleAgentCollapse(agent.id)}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    /* EXPANDED VIEW */
-                    <div className="p-4 space-y-4">
-                      {/* Header Controls */}
-                      <div className="flex justify-between items-start">
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0", agent.color)}>
+                          {agent.name[0].toUpperCase()}
+                        </div>
+                        <span className="flex-1 font-medium text-sm truncate select-none text-gray-700">
+                          {agent.name}
+                        </span>
                         <button
-                          onClick={() => toggleAgentCollapse(agent.id)}
-                          className="p-1 hover:bg-gray-200 rounded text-gray-500"
-                          title="Collapse"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => removeAgent(agent.id)}
-                          className="p-1 text-gray-400 hover:text-red-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeAgent(agent.id);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Remove Agent"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-
-                      {/* Profile Section (Center) */}
-                      <div className="flex flex-col items-center gap-3">
-                        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md", agent.color)}>
-                          {agent.name[0].toUpperCase()}
-                        </div>
-                        <input
-                          value={agent.name}
-                          onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
-                          className="text-center bg-transparent font-bold border-b-2 border-transparent hover:border-gray-200 focus:border-blue-500 outline-none text-base py-1 px-2 transition-all w-full max-w-[80%]"
-                          placeholder="Agent Name"
-                        />
-                      </div>
-
-                      {/* Settings Details */}
-                      <div className="space-y-3 animate-in slide-in-from-top-1 duration-200 pt-2">
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Model</label>
-                          <select
-                            value={agent.model}
-                            onChange={(e) => {
-                              const newModel = e.target.value as ModelProvider;
-                              const updates: Partial<Agent> = { model: newModel };
-                              if (newModel === "local" && !agent.localModelName) {
-                                updates.localModelName = "qwen/qwen3-vl-8b";
-                              }
-                              updateAgent(agent.id, updates);
-                            }}
-                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    ) : (
+                      /* EXPANDED VIEW */
+                      <div className="p-4 space-y-4">
+                        {/* Header Controls */}
+                        <div className="flex justify-between items-start">
+                          <button
+                            onClick={() => toggleAgentCollapse(agent.id)}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-500"
+                            title="Collapse"
                           >
-                            {MODELS.map((m) => (
-                              <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                          </select>
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => removeAgent(agent.id)}
+                            className="p-1 text-gray-400 hover:text-red-500"
+                            title="Remove Agent"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
 
-                        {agent.model === "local" && (
-                          <div className="animate-in slide-in-from-top-1 duration-150">
-                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Local Model Name</label>
-                            <input
-                              value={agent.localModelName || ""}
-                              onChange={(e) => updateAgent(agent.id, { localModelName: e.target.value })}
-                              placeholder="e.g. llama3, qwen2"
-                              className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                            />
+                        {/* Profile Section (Center) */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md", agent.color)}>
+                            {agent.name[0].toUpperCase()}
                           </div>
-                        )}
-
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Personality</label>
-                          <textarea
-                            value={agent.systemPrompt}
-                            onChange={(e) => updateAgent(agent.id, { systemPrompt: e.target.value })}
-                            className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs h-24 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed"
+                          <input
+                            value={agent.name}
+                            onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
+                            className="text-center bg-transparent font-bold border-b-2 border-transparent hover:border-gray-200 focus:border-blue-500 outline-none text-base py-1 px-2 transition-all w-full max-w-[80%]"
+                            placeholder="Agent Name"
                           />
                         </div>
 
-                        <div className="text-[10px] text-gray-300 text-center pt-1">
-                          ID: {agent.id}
+                        {/* Settings Details */}
+                        <div className="space-y-3 animate-in slide-in-from-top-1 duration-200 pt-2">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Model</label>
+                            <select
+                              value={agent.model}
+                              onChange={(e) => {
+                                const newModel = e.target.value as ModelProvider;
+                                const updates: Partial<Agent> = { model: newModel };
+                                if (newModel === "local" && !agent.localModelName) {
+                                  updates.localModelName = "qwen/qwen3-vl-8b";
+                                }
+                                updateAgent(agent.id, updates);
+                              }}
+                              className="w-full bg-white border border-white/60 rounded-lg px-2 py-1.5 text-sm outline-none shadow-sm focus:bg-gray-50/50 transition-colors"
+                            >
+                              {MODELS.map((m) => (
+                                <option key={m.value} value={m.value}>{m.label}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {agent.model === "local" && (
+                            <div className="animate-in slide-in-from-top-1 duration-150">
+                              <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Local Model Name</label>
+                              <input
+                                value={agent.localModelName || ""}
+                                onChange={(e) => updateAgent(agent.id, { localModelName: e.target.value })}
+                                placeholder="e.g. llama3, qwen2"
+                                className="w-full bg-white border border-white/60 rounded-lg px-2 py-1.5 text-sm outline-none shadow-sm focus:bg-gray-50/50 transition-colors"
+                              />
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Personality</label>
+                            <textarea
+                              value={agent.systemPrompt}
+                              onChange={(e) => updateAgent(agent.id, { systemPrompt: e.target.value })}
+                              className="w-full bg-white border border-white/60 rounded-lg p-2 text-xs h-24 outline-none resize-none leading-relaxed shadow-sm focus:bg-gray-50/50 transition-colors"
+                            />
+                          </div>
+
+                          <div className="text-[10px] text-gray-300 text-center pt-1">
+                            ID: {agent.id}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                );
+              })}
+              {activeSession && agents.length === 0 && (
+                <div className="text-center py-10 text-gray-400 italic">
+                  No agents added. Click + to add one.
                 </div>
-              );
-            })}
-            {activeSession && agents.length === 0 && (
-              <div className="text-center py-10 text-gray-400 italic">
-                No agents added. Click + to add one.
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </aside>
       )}
 
       {/* Main Chat Area */}
       {!activeSession ? (
-        <section className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center">
-            <MessageSquare className="w-12 h-12 text-gray-400" />
+        <section className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-32 h-32 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center shadow-inner">
+            <MessageSquare className="w-16 h-16 text-blue-400" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-gray-800">No Active Chats</h2>
-            <p className="text-gray-500 max-w-md">
-              Create a new chat room to start letting agents talk to each other.
+          <div className="space-y-3">
+            <h2 className="text-3xl font-bold text-gray-800 tracking-tight">No Active Chats</h2>
+            <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+              Experience the future of collaboration. Create a room and watch your agents interact in a beautiful, floating arena.
             </p>
           </div>
           <button
             onClick={createSession}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[1.25rem] font-bold shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 group"
           >
-            <Plus className="w-5 h-5" />
-            Create New Chat
+            <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            Create Your First Arena
           </button>
         </section>
       ) : (
-        <section className="flex-1 flex flex-col min-w-0" >
+        <section className="flex-1 flex flex-col min-w-0 bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl shadow-blue-900/5 overflow-hidden" >
           {/* Header */}
-          < header className="h-16 bg-white/40 backdrop-blur-md flex items-center justify-between px-4 md:px-6 border-b border-white/40 shadow-sm" >
-            <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+          < header className="h-20 bg-white/40 backdrop-blur-md flex items-center justify-between px-6 md:px-8 border-b border-white/40" >
+            <div className="flex items-center gap-6 md:gap-8">
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-2 -ml-2 hover:bg-gray-100 rounded-lg md:hidden"
               >
                 <Menu className="w-5 h-5 text-gray-600" />
               </button>
-              <h1 className="font-bold text-lg whitespace-nowrap">Chat Arena</h1>
-              <div className="flex -space-x-2 overflow-x-auto no-scrollbar py-1">
-                {agents.map((agent, i) => (
-                  <div
-                    key={agent.id}
-                    className={cn(
-                      "w-8 h-8 flex-shrink-0 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold transition-transform",
-                      agent.color,
-                      activeAgentIndex === i && "ring-2 ring-blue-500 scale-110 z-10"
-                    )}
-                    title={agent.name}
-                  >
-                    {agent.name[0]}
-                  </div>
-                ))}
+              <h1 className="font-extrabold text-base text-gray-800 whitespace-nowrap">Chat Arena</h1>
+              <div className="flex items-center py-1 ml-4 group/icon-list" onMouseLeave={() => setHoveredAgentIndex(null)}>
+                {agents.map((agent, i) => {
+                  const isHovered = hoveredAgentIndex === i;
+                  const isActive = activeAgentIndex === i;
+
+                  return (
+                    <div
+                      key={agent.id}
+                      onMouseEnter={() => setHoveredAgentIndex(i)}
+                      style={{
+                        transform: `scale(${isActive ? 1.3 : (isHovered ? 1.15 : 1)})`,
+                      }}
+                      className={cn(
+                        "w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm cursor-default",
+                        "transition-all duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]",
+                        // Base overlap
+                        "mx-[-4px]",
+                        // Speaking or Hovered icon gets more space and z-index priority
+                        (isActive || isHovered) ? "z-30 mx-1.5" : "z-10",
+                        isActive && "ring-2 ring-white/50 shadow-lg",
+                        hoveredAgentIndex !== null && !isHovered && "opacity-80",
+                        agent.color
+                      )}
+                      title={agent.name}
+                    >
+                      {agent.name[0]}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -795,10 +815,10 @@ export default function Home() {
                 onClick={toggleAutoChat}
                 disabled={agents.length < 2}
                 className={cn(
-                  "flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all shadow-sm text-sm md:text-base",
+                  "flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold transition-all active:scale-95 disabled:opacity-30",
                   isAutoChatting
-                    ? "bg-red-100 text-red-600 hover:bg-red-200"
-                    : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    ? "text-red-500 hover:bg-red-50/50 hover:text-red-600"
+                    : "text-blue-600 hover:bg-blue-50/50 hover:text-blue-700"
                 )}
               >
                 {isAutoChatting ? (
@@ -914,20 +934,24 @@ export default function Home() {
               </div>
             )}
 
-            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 transition-all">
+            <div className="relative flex items-end gap-3 bg-white/80 backdrop-blur-md rounded-3xl p-3 border border-white/60 shadow-xl shadow-blue-900/5 focus-within:bg-white/95 focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:shadow-blue-500/10 transition-all duration-300">
               <textarea
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message... (Use @ to mention an agent)"
-                className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2.5 px-2 text-sm"
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[44px] py-2.5 px-2 text-sm"
                 rows={1}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isTyping[activeSessionId]}
-                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className={cn(
+                  "p-2 bg-transparent rounded-xl transition-all active:scale-90",
+                  inputValue.trim() ? "text-gray-500" : "text-blue-600 opacity-40",
+                  isTyping[activeSessionId] && "opacity-30 cursor-not-allowed"
+                )}
               >
                 <Send className="w-5 h-5" />
               </button>
