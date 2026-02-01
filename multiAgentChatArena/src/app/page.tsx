@@ -500,228 +500,230 @@ export default function Home() {
       )}
 
       {/* Sidebar: Agent Configuration */}
-      <aside className={cn(
-        "w-80 bg-white flex flex-col shadow-sm fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 border-r",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        {/* Sessions Section */}
-        <div className="flex flex-col border-b h-1/3 min-h-[200px]">
-          <div className="h-16 px-4 border-b flex justify-between items-center bg-gray-50/50">
-            <h2 className="font-bold text-sm text-gray-700 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-gray-500" />
-              Chat Rooms
-            </h2>
-            <button
-              onClick={createSession}
-              className="p-1.5 hover:bg-gray-200 rounded-md transition-colors text-blue-600"
-              title="New Chat"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => setActiveSessionId(session.id)}
-                className={cn(
-                  "p-2 rounded-lg cursor-pointer flex items-center justify-between group text-sm transition-colors",
-                  activeSessionId === session.id ? "bg-blue-50 border-blue-100 text-blue-700" : "hover:bg-gray-50 text-gray-700"
-                )}
+      {sessions.length > 0 && (
+        <aside className={cn(
+          "w-80 bg-gray-50 flex flex-col shadow-none fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-gray-100",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
+          {/* Sessions Section */}
+          <div className="flex flex-col border-b h-1/3 min-h-[200px]">
+            <div className="h-16 px-4 border-b flex justify-between items-center bg-gray-50/50">
+              <h2 className="font-bold text-sm text-gray-700 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-gray-500" />
+                Chat Rooms
+              </h2>
+              <button
+                onClick={createSession}
+                className="p-1.5 hover:bg-gray-200 rounded-md transition-colors text-blue-600"
+                title="New Chat"
               >
-                {editingSessionId === session.id ? (
-                  <div className="flex items-center gap-1 w-full">
-                    <input
-                      autoFocus
-                      className="bg-white border rounded px-1 py-0.5 w-full text-xs"
-                      value={newSessionName}
-                      onChange={(e) => setNewSessionName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveSessionName(session.id);
-                        if (e.key === 'Escape') setEditingSessionId(null);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <button onClick={(e) => { e.stopPropagation(); saveSessionName(session.id); }} className="text-green-600"><Check className="w-3 h-3" /></button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="truncate flex-1 font-medium">{session.name}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => startEditingSession(session.id, session.name, e)}
-                        className="p-1 hover:bg-gray-200 rounded"
-                      >
-                        <Edit className="w-3 h-3 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={(e) => deleteSession(session.id, e)}
-                        className="p-1 hover:bg-red-100 rounded text-red-500"
-                      // disabled={sessions.length <= 1} // REMOVED
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Agents Section Header */}
-        <div className="h-16 px-4 border-b flex justify-between items-center bg-white sticky top-0 z-10" >
-          <h2 className="font-bold text-xl flex items-center gap-2">
-            <Bot className="w-6 h-6 text-blue-600" />
-            Agents
-          </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={addAgent}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-blue-600"
-              title="Add Agent"
-              disabled={!activeSession} // Disable if no session
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 md:hidden"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div >
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {!activeSession && (
-            <div className="text-center py-10 text-gray-400 italic font-medium">
-              Select or Create a Chat
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
-          )}
-          {activeSession && agents.map((agent) => {
-            const isCollapsed = collapsedAgents.has(agent.id);
-
-            return (
-              <div key={agent.id} className="border rounded-xl bg-gray-50 relative group transition-all duration-200 overflow-hidden">
-                {/* COLLAPSED VIEW */}
-                {isCollapsed ? (
-                  <div
-                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => toggleAgentCollapse(agent.id)}
-                  >
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                    <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0", agent.color)}>
-                      {agent.name[0].toUpperCase()}
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {sessions.map(session => (
+                <div
+                  key={session.id}
+                  onClick={() => setActiveSessionId(session.id)}
+                  className={cn(
+                    "p-2 rounded-lg cursor-pointer flex items-center justify-between group text-sm transition-colors",
+                    activeSessionId === session.id ? "bg-blue-50 border-blue-100 text-blue-700" : "hover:bg-gray-50 text-gray-700"
+                  )}
+                >
+                  {editingSessionId === session.id ? (
+                    <div className="flex items-center gap-1 w-full">
+                      <input
+                        autoFocus
+                        className="bg-white border rounded px-1 py-0.5 w-full text-xs"
+                        value={newSessionName}
+                        onChange={(e) => setNewSessionName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveSessionName(session.id);
+                          if (e.key === 'Escape') setEditingSessionId(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button onClick={(e) => { e.stopPropagation(); saveSessionName(session.id); }} className="text-green-600"><Check className="w-3 h-3" /></button>
                     </div>
-                    <span className="flex-1 font-medium text-sm truncate select-none text-gray-700">
-                      {agent.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeAgent(agent.id);
-                      }}
-                      className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove Agent"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  /* EXPANDED VIEW */
-                  <div className="p-4 space-y-4">
-                    {/* Header Controls */}
-                    <div className="flex justify-between items-start">
-                      <button
-                        onClick={() => toggleAgentCollapse(agent.id)}
-                        className="p-1 hover:bg-gray-200 rounded text-gray-500"
-                        title="Collapse"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
+                  ) : (
+                    <>
+                      <span className="truncate flex-1 font-medium">{session.name}</span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => startEditingSession(session.id, session.name, e)}
+                          className="p-1 hover:bg-gray-200 rounded"
+                        >
+                          <Edit className="w-3 h-3 text-gray-500" />
+                        </button>
+                        <button
+                          onClick={(e) => deleteSession(session.id, e)}
+                          className="p-1 hover:bg-red-100 rounded text-red-500"
+                        // disabled={sessions.length <= 1} // REMOVED
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
+          {/* Agents Section Header */}
+          <div className="h-16 px-4 border-b flex justify-between items-center bg-white sticky top-0 z-10" >
+            <h2 className="font-bold text-xl flex items-center gap-2">
+              <Bot className="w-6 h-6 text-blue-600" />
+              Agents
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={addAgent}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-blue-600"
+                title="Add Agent"
+                disabled={!activeSession} // Disable if no session
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 md:hidden"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div >
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {!activeSession && (
+              <div className="text-center py-10 text-gray-400 italic font-medium">
+                Select or Create a Chat
+              </div>
+            )}
+            {activeSession && agents.map((agent) => {
+              const isCollapsed = collapsedAgents.has(agent.id);
+
+              return (
+                <div key={agent.id} className="border rounded-xl bg-gray-50 relative group transition-all duration-200 overflow-hidden">
+                  {/* COLLAPSED VIEW */}
+                  {isCollapsed ? (
+                    <div
+                      className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => toggleAgentCollapse(agent.id)}
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0", agent.color)}>
+                        {agent.name[0].toUpperCase()}
+                      </div>
+                      <span className="flex-1 font-medium text-sm truncate select-none text-gray-700">
+                        {agent.name}
+                      </span>
                       <button
-                        onClick={() => removeAgent(agent.id)}
-                        className="p-1 text-gray-400 hover:text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeAgent(agent.id);
+                        }}
+                        className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Remove Agent"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-
-                    {/* Profile Section (Center) */}
-                    <div className="flex flex-col items-center gap-3">
-                      <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md", agent.color)}>
-                        {agent.name[0].toUpperCase()}
-                      </div>
-                      <input
-                        value={agent.name}
-                        onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
-                        className="text-center bg-transparent font-bold border-b-2 border-transparent hover:border-gray-200 focus:border-blue-500 outline-none text-base py-1 px-2 transition-all w-full max-w-[80%]"
-                        placeholder="Agent Name"
-                      />
-                    </div>
-
-                    {/* Settings Details */}
-                    <div className="space-y-3 animate-in slide-in-from-top-1 duration-200 pt-2">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Model</label>
-                        <select
-                          value={agent.model}
-                          onChange={(e) => {
-                            const newModel = e.target.value as ModelProvider;
-                            const updates: Partial<Agent> = { model: newModel };
-                            if (newModel === "local" && !agent.localModelName) {
-                              updates.localModelName = "qwen/qwen3-vl-8b";
-                            }
-                            updateAgent(agent.id, updates);
-                          }}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                  ) : (
+                    /* EXPANDED VIEW */
+                    <div className="p-4 space-y-4">
+                      {/* Header Controls */}
+                      <div className="flex justify-between items-start">
+                        <button
+                          onClick={() => toggleAgentCollapse(agent.id)}
+                          className="p-1 hover:bg-gray-200 rounded text-gray-500"
+                          title="Collapse"
                         >
-                          {MODELS.map((m) => (
-                            <option key={m.value} value={m.value}>{m.label}</option>
-                          ))}
-                        </select>
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => removeAgent(agent.id)}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                          title="Remove Agent"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      {agent.model === "local" && (
-                        <div className="animate-in slide-in-from-top-1 duration-150">
-                          <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Local Model Name</label>
-                          <input
-                            value={agent.localModelName || ""}
-                            onChange={(e) => updateAgent(agent.id, { localModelName: e.target.value })}
-                            placeholder="e.g. llama3, qwen2"
-                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                          />
+                      {/* Profile Section (Center) */}
+                      <div className="flex flex-col items-center gap-3">
+                        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md", agent.color)}>
+                          {agent.name[0].toUpperCase()}
                         </div>
-                      )}
-
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Personality</label>
-                        <textarea
-                          value={agent.systemPrompt}
-                          onChange={(e) => updateAgent(agent.id, { systemPrompt: e.target.value })}
-                          className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs h-24 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed"
+                        <input
+                          value={agent.name}
+                          onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
+                          className="text-center bg-transparent font-bold border-b-2 border-transparent hover:border-gray-200 focus:border-blue-500 outline-none text-base py-1 px-2 transition-all w-full max-w-[80%]"
+                          placeholder="Agent Name"
                         />
                       </div>
 
-                      <div className="text-[10px] text-gray-300 text-center pt-1">
-                        ID: {agent.id}
+                      {/* Settings Details */}
+                      <div className="space-y-3 animate-in slide-in-from-top-1 duration-200 pt-2">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Model</label>
+                          <select
+                            value={agent.model}
+                            onChange={(e) => {
+                              const newModel = e.target.value as ModelProvider;
+                              const updates: Partial<Agent> = { model: newModel };
+                              if (newModel === "local" && !agent.localModelName) {
+                                updates.localModelName = "qwen/qwen3-vl-8b";
+                              }
+                              updateAgent(agent.id, updates);
+                            }}
+                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          >
+                            {MODELS.map((m) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {agent.model === "local" && (
+                          <div className="animate-in slide-in-from-top-1 duration-150">
+                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Local Model Name</label>
+                            <input
+                              value={agent.localModelName || ""}
+                              onChange={(e) => updateAgent(agent.id, { localModelName: e.target.value })}
+                              placeholder="e.g. llama3, qwen2"
+                              className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Personality</label>
+                          <textarea
+                            value={agent.systemPrompt}
+                            onChange={(e) => updateAgent(agent.id, { systemPrompt: e.target.value })}
+                            className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs h-24 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none leading-relaxed"
+                          />
+                        </div>
+
+                        <div className="text-[10px] text-gray-300 text-center pt-1">
+                          ID: {agent.id}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              );
+            })}
+            {activeSession && agents.length === 0 && (
+              <div className="text-center py-10 text-gray-400 italic">
+                No agents added. Click + to add one.
               </div>
-            );
-          })}
-          {activeSession && agents.length === 0 && (
-            <div className="text-center py-10 text-gray-400 italic">
-              No agents added. Click + to add one.
-            </div>
-          )}
-        </div>
-      </aside >
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* Main Chat Area */}
       {!activeSession ? (
