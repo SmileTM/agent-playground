@@ -10,6 +10,16 @@ export interface Agent {
   localModelName?: string;
 }
 
+export interface ChatSession {
+  id: string;
+  name: string;
+  agents: Agent[];
+  messages: Message[];
+  isAutoChatting: boolean;
+  activeAgentIndex: number;
+  createdAt: number;
+}
+
 export interface Message {
   id: string;
   agentId: string;

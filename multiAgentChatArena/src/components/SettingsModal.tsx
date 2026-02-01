@@ -130,7 +130,7 @@ export default function SettingsModal({ isOpen, onClose, config, setConfig }: Se
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    The endpoint compatible with OpenAI's /chat/completions format.
+                    The endpoint compatible with OpenAI&apos;s /chat/completions format.
                   </p>
                 </div>
               </div>
