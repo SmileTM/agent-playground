@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { createParser } from 'eventsource-parser';
 import { ApiConfiguration, ModelProvider } from '@/types/chat';
+import { buildSystemPrompt } from '@/lib/prompts';
 
 export async function POST(req: Request) {
   try {
-    const { messages, currentAgent, allAgents, apiConfig } = await req.json();
+    const { messages, currentAgent, allAgents, systemBasePrompt, apiConfig } = await req.json();
 
     const config = apiConfig as ApiConfiguration;
     const model = (currentAgent.model || "gpt-3.5-turbo") as ModelProvider;
@@ -28,15 +30,15 @@ export async function POST(req: Request) {
 
     // If an API key is provided OR it's a local model (which might not need a key), use the real API
     if (apiKey || model === "local") {
+      const systemMessageContent = buildSystemPrompt({
+        currentAgent,
+        allAgents,
+        systemBasePrompt,
+      });
+
       const systemMessage = {
         role: "system",
-        content: `You are ${currentAgent.name}. Your personality/instruction is: "${currentAgent.systemPrompt}".
-        
-        You are currently in a group chat with the following participants:
-        ${allAgents.map((a: any) => `- ${a.name}: ${a.systemPrompt}`).join('\n')}
-        
-        Respond to the conversation naturally as your character. Keep your response concise (under 3 sentences) and engaging. 
-        Interact with the other agents' specific points. Do not prefix your response with your name.`
+        content: systemMessageContent
       };
 
       const conversationHistory = messages.map((msg: any) => {
@@ -106,8 +108,7 @@ export async function POST(req: Request) {
             };
           })
         ],
-        temperature: 0.7,
-        max_tokens: 150,
+        stream: true,
       };
 
       const endpoint = `${baseUrl}/chat/completions`;
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
           ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify(payload),
+        signal: req.signal,
       });
 
       if (!apiResponse.ok) {
@@ -136,34 +138,62 @@ export async function POST(req: Request) {
         throw new Error(errorMsg);
       }
 
-      const data = await apiResponse.json();
-      console.log(`[RAW API RESPONSE DEBUG] ${model}:`, JSON.stringify(data, null, 2));
+      // Setup transforming stream to send back JSONLine chunks
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          const decoder = new TextDecoder();
 
-      // Extract content, but be careful with empty strings which are technically valid but falsy
-      let responseContent = data.choices?.[0]?.message?.content;
+          // 1. Send our custom debug context first
+          controller.enqueue(encoder.encode(JSON.stringify({ type: "debug", promptPayload: payload }) + "\n"));
 
-      // Fallback to other possible locations if message.content is undefined/null
-      if (responseContent === undefined || responseContent === null) {
-        responseContent = data.choices?.[0]?.text
-          || data.message?.content
-          || (typeof data === 'string' ? data : null);
-      }
+          const reader = apiResponse.body?.getReader();
+          if (!reader) {
+            controller.close();
+            return;
+          }
 
-      // If it's still null/undefined, then it's a real format error
-      if (responseContent === null || responseContent === undefined) {
-        console.error("Unexpected API Response Format (Missing Content):", JSON.stringify(data, null, 2));
-        throw new Error("Invalid response format from API. Could not find content in response.");
-      }
+          let buffer = "";
+          try {
+            const parser = createParser({
+              onEvent(event: any) {
+                const dataStr = event.data;
+                if (dataStr === '[DONE]') return;
+                try {
+                  const dataObj = JSON.parse(dataStr);
+                  const content = dataObj.choices?.[0]?.delta?.content || "";
+                  const reasoning = dataObj.choices?.[0]?.delta?.reasoning_content || "";
+                  
+                  if (content || reasoning) {
+                    controller.enqueue(
+                      encoder.encode(JSON.stringify({ type: "chunk", content, reasoning, raw: dataObj }) + "\n")
+                    );
+                  }
+                } catch (e) {
+                  console.error("Failed to parse SSE data string:", dataStr, e);
+                }
+              }
+            });
 
-      // If it is an empty string, provide a placeholder so the UI doesn't look broken
-      let trimmedContent = typeof responseContent === 'string' ? responseContent.trim() : JSON.stringify(responseContent);
-      if (trimmedContent === "") {
-        trimmedContent = "(The model returned an empty response)";
-      }
-      console.log(`[API Response] ${model}: "${trimmedContent}"`);
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              parser.feed(decoder.decode(value, { stream: true }));
+            }
+          } catch (streamErr) {
+            console.error("Stream reading error:", streamErr);
+          } finally {
+            controller.close();
+          }
+        }
+      });
 
-      return NextResponse.json({
-        content: trimmedContent,
+      return new Response(readableStream, {
+        headers: {
+          "Content-Type": "application/x-ndjson",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
       });
     }
 

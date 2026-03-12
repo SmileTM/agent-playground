@@ -18,7 +18,12 @@ import {
   Edit,
   Check,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Bug,
+  Copy,
+  Lightbulb,
+  Square,
+  Target
 } from "lucide-react";
 import SettingsModal from "@/components/SettingsModal";
 
@@ -100,6 +105,8 @@ const MODELS: { value: ModelProvider; label: string }[] = [
   { value: "local", label: "Local Model (Custom)" },
 ];
 
+const generateId = (prefix: string = 'id') => `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 export default function Home() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState("");
@@ -128,10 +135,13 @@ export default function Home() {
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState("");
+  const [openDebugIds, setOpenDebugIds] = useState<Set<string>>(new Set());
+  const [openThinkIds, setOpenThinkIds] = useState<Set<string>>(new Set());
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
   const mentionPopupRef = useRef<HTMLDivElement>(null);
-
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [hoveredAgentIndex, setHoveredAgentIndex] = useState<number | null>(null);
 
@@ -151,6 +161,16 @@ export default function Home() {
       }
     }
   }, [mentionIndex, showMentions]);
+
+  const handleCopy = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  };
 
   // Click outside to close mentions
   useEffect(() => {
@@ -255,6 +275,8 @@ export default function Home() {
   const addMessageToSession = (sessionId: string, message: Message) => {
     setSessions(prev => prev.map(s => {
       if (s.id === sessionId) {
+        // Prevent adding duplicate message IDs
+        if (s.messages.some(m => m.id === message.id)) return s;
         return { ...s, messages: [...s.messages, message] };
       }
       return s;
@@ -272,40 +294,212 @@ export default function Home() {
     const indexToUse = forcedAgentIndex !== undefined ? forcedAgentIndex : session.activeAgentIndex;
     const currentAgent = session.agents[indexToUse];
 
+    let newMessageId = generateId('msg');
+    let newMessage: Message = {
+      id: newMessageId,
+      agentId: currentAgent.id,
+      agentName: currentAgent.name,
+      content: "",
+      thinkContent: "",
+      timestamp: Date.now(),
+      debugInfo: null,
+      isThinking: true,
+      thinkStartTime: Date.now(),
+    };
+
+    // Auto-expand the thought process for a live-streaming feel
+    setOpenThinkIds(prev => new Set(prev).add(newMessageId));
+
+    // Explicitly add an empty message to state first so the UI renders it
+    addMessageToSession(sessionId, newMessage);
+
     try {
+      // Cancel previous request if any
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           messages: historyOverride || session.messages,
           currentAgent,
           allAgents: session.agents,
+          systemBasePrompt: session.systemBasePrompt,
           apiConfig,
         }),
       });
 
-      const data = await response.json();
+      if (!response.body) throw new Error("No response body");
 
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        agentId: currentAgent.id,
-        agentName: currentAgent.name,
-        content: data.content,
-        timestamp: Date.now(),
-      };
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      addMessageToSession(sessionId, newMessage);
+      let rawContent = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        while (true) {
+          const boundary = buffer.indexOf("\n");
+          if (boundary === -1) break; // Wait for more data to complete a line
+
+          const line = buffer.slice(0, boundary).trim();
+          buffer = buffer.slice(boundary + 1); // Remove processed line from buffer
+
+          if (!line) continue;
+
+          try {
+            const parsed = JSON.parse(line);
+            
+            if (parsed.type === "debug") {
+              newMessage.debugInfo = { promptPayload: parsed.promptPayload, rawResponse: [] };
+            } else if (parsed.type === "chunk") {
+              let chunkText = parsed.content || "";
+              let reasoning = parsed.reasoning || "";
+
+              // Track thinking state
+              if ((reasoning || chunkText.includes("<think>")) && !newMessage.thinkStartTime) {
+                newMessage.isThinking = true;
+                newMessage.thinkStartTime = Date.now();
+                // Auto-expand the thought process for a live-streaming feel
+                setOpenThinkIds(prev => new Set(prev).add(newMessageId));
+              }
+
+              // Native reasoning (e.g. from DeepSeek v3 via API)
+              if (reasoning) {
+                newMessage.thinkContent = (newMessage.thinkContent || "") + reasoning;
+              }
+
+              // Standard content (which might contain <think> tags natively)
+              if (chunkText) {
+                // If we were thinking and now we get non-think content, finish thinking
+                if (newMessage.isThinking && !chunkText.includes("<think>") && !rawContent.includes("<think>")) {
+                  // This is a heuristic: if we get content but no <think> tag, and we were "thinking", check if it's actually finished
+                }
+
+                rawContent += chunkText;
+                
+                // Live parse <think> tags out of rawContent
+                const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/i);
+                if (thinkMatch) {
+                  const extractedThink = thinkMatch[1];
+                  const replacedContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/i, '').trim();
+                  newMessage.content = replacedContent;
+                  // Use native reasoning if it exists, otherwise fall back to parsed
+                  if (!reasoning) {
+                    newMessage.thinkContent = extractedThink.trim();
+                  }
+
+                  // Check if thinking is finished inside the <think> tag
+                  if (rawContent.includes("</think>")) {
+                    if (newMessage.isThinking) {
+                      newMessage.isThinking = false;
+                      newMessage.thinkDurationMs = Date.now() - (newMessage.thinkStartTime || Date.now());
+                    }
+                  }
+                } else {
+                  // If we have native reasoning but no <think> tag in content, we might have finished reasoning
+                  if (newMessage.isThinking && !reasoning && chunkText) {
+                    newMessage.isThinking = false;
+                    newMessage.thinkDurationMs = Date.now() - (newMessage.thinkStartTime || Date.now());
+                  }
+                  newMessage.content = rawContent;
+                }
+              }
+
+              // Append raw chunk event to debug
+              if (newMessage.debugInfo && parsed.raw) {
+                newMessage.debugInfo.rawResponse.push(parsed.raw);
+              }
+
+              // Update the state incrementally
+              setSessions(prev => prev.map(s => {
+                if (s.id !== sessionId) return s;
+                return {
+                  ...s,
+                  messages: s.messages.map(m => m.id === newMessageId ? { ...newMessage } : m)
+                };
+              }));
+            }
+          } catch (e) {
+            // If it's incomplete JSON due to a newline inside a string property, 
+            // we must put the line back into the buffer and wait for the rest.
+            buffer = line + "\n" + buffer;
+            break; 
+          }
+        }
+      }
 
       if (forcedAgentIndex !== undefined) {
         updateSession(sessionId, { activeAgentIndex: (forcedAgentIndex + 1) % session.agents.length });
       } else {
         updateSession(sessionId, (prev) => ({ activeAgentIndex: (prev.activeAgentIndex + 1) % session.agents.length }));
       }
-    } catch (error) {
-      console.error("Failed to get response:", error);
+      
+      return newMessage;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log("Generation stopped by user.");
+        // Finalize message state if it was thinking
+        setSessions(prev => prev.map(s => {
+          if (s.id !== sessionId) return s;
+          return {
+            ...s,
+            messages: s.messages.map(m => {
+              if (m.id === newMessageId && m.isThinking) {
+                return { 
+                  ...m, 
+                  isThinking: false, 
+                  thinkDurationMs: Date.now() - (m.thinkStartTime || Date.now()) 
+                };
+              }
+              return m;
+            })
+          };
+        }));
+      } else {
+        console.error("Failed to get response:", error);
+        // Show error message in the bubble
+        setSessions(prev => prev.map(s => {
+          if (s.id !== sessionId) return s;
+          return {
+            ...s,
+            messages: s.messages.map(m => {
+              if (m.id === newMessageId) {
+                return { 
+                  ...m, 
+                  isThinking: false, 
+                  content: `Error: ${error.message || "Failed to fetch response"}` 
+                };
+              }
+              return m;
+            })
+          };
+        }));
+      }
+      return null;
     } finally {
       setIsTyping(prev => ({ ...prev, [sessionId]: false }));
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    updateActiveSession({ isAutoChatting: false });
+    setIsTyping(prev => ({ ...prev, [activeSessionId]: false }));
   };
 
   useEffect(() => {
@@ -434,7 +628,7 @@ export default function Home() {
 
     const currentInputValue = inputValue.trim();
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: generateId('msg'),
       agentId: "user",
       agentName: "You",
       content: currentInputValue,
@@ -462,15 +656,19 @@ export default function Home() {
 
     if (mentionedAgents.length > 0) {
       // Trigger sequential responses for all mentioned agents
+      let currentHistory = updatedMessages;
       for (const agent of mentionedAgents) {
         const agentIndex = agents.findIndex(a => a.id === agent.id);
         if (agentIndex !== -1) {
-          await getNextResponse(activeSessionId, agentIndex);
+          const responseMsg = await getNextResponse(activeSessionId, agentIndex, currentHistory);
+          if (responseMsg) {
+             currentHistory = [...currentHistory, responseMsg];
+          }
         }
       }
     } else {
       // Fallback to active agent if none mentioned
-      await getNextResponse(activeSessionId);
+      await getNextResponse(activeSessionId, undefined, updatedMessages);
     }
   };
 
@@ -484,7 +682,7 @@ export default function Home() {
     }
 
     const newAgent: Agent = {
-      id: Date.now().toString(),
+      id: generateId('agent'),
       name: uniqueName,
       systemPrompt: randomPreset.systemPrompt || "You are a helpful assistant.",
       color: randomPreset.color || "bg-blue-500",
@@ -514,7 +712,7 @@ export default function Home() {
   // Session Management
   const createSession = () => {
     const newSession: ChatSession = {
-      id: Date.now().toString(),
+      id: generateId('sess'),
       name: `New Chat ${sessions.length + 1}`,
       agents: [],
       messages: [],
@@ -647,6 +845,22 @@ export default function Home() {
             </div>
           </div>
 
+          {/* System Base Prompt Island */}
+          {activeSession && (
+            <div className="flex flex-col bg-white/70 backdrop-blur-xl rounded-[1.5rem] border border-white/60 shadow-xl shadow-purple-900/5 p-4 shrink-0 transition-all">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-purple-600" />
+                <h3 className="font-extrabold text-sm text-gray-800">System Prompt</h3>
+              </div>
+              <textarea
+                value={activeSession.systemBasePrompt || ""}
+                onChange={(e) => updateActiveSession({ systemBasePrompt: e.target.value })}
+                placeholder="Enter global task or context (e.g., 'Discuss AI ethics')"
+                className="w-full bg-white/50 border border-white/60 rounded-xl p-2 text-xs h-16 outline-none resize-none leading-relaxed shadow-sm focus:bg-white focus:ring-2 focus:ring-purple-500/20 transition-all text-gray-700 placeholder:text-gray-400"
+              />
+            </div>
+          )}
+
           {/* Agents Section Island */}
           <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-xl shadow-blue-900/5 overflow-hidden min-h-0">
             {/* Header */}
@@ -705,7 +919,7 @@ export default function Home() {
                       >
                         <ChevronRight className="w-4 h-4 text-gray-400" />
                         <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0", agent.color)}>
-                          {agent.name[0].toUpperCase()}
+                          {agent.name?.[0] ? agent.name[0].toUpperCase() : '?'}
                         </div>
                         <span className="flex-1 font-medium text-sm truncate select-none text-gray-700">
                           {agent.name}
@@ -746,7 +960,7 @@ export default function Home() {
                         {/* Profile Section (Center) */}
                         <div className="flex flex-col items-center gap-3">
                           <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md", agent.color)}>
-                            {agent.name[0].toUpperCase()}
+                            {agent.name?.[0] ? agent.name[0].toUpperCase() : '?'}
                           </div>
                           <input
                             value={agent.name}
@@ -877,7 +1091,7 @@ export default function Home() {
                         )}
                         title={agent.name}
                       >
-                        {agent.name[0]}
+                        {agent.name?.[0] || '?'}
                       </div>
                     );
                   })}
@@ -970,19 +1184,119 @@ export default function Home() {
                             : "bg-white/90 backdrop-blur-sm rounded-3xl rounded-tl-none border border-white shadow-blue-900/5"
                         )}
                       >
+                        {/* Think Content Block */}
+                        {msg.thinkContent && !isUser && (
+                          <div className="mb-3">
+                            <button
+                              onClick={() => {
+                                setOpenThinkIds(prev => {
+                                  const newSet = new Set(prev);
+                                  if (newSet.has(msg.id)) newSet.delete(msg.id);
+                                  else newSet.add(msg.id);
+                                  return newSet;
+                                });
+                              }}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer w-fit border shadow-sm",
+                                msg.isThinking 
+                                  ? "bg-blue-50/50 border-blue-100 text-blue-600 animate-pulse-subtle" 
+                                  : "bg-gray-100/50 border-gray-100 text-gray-500 hover:bg-gray-100"
+                              )}
+                            >
+                              {msg.isThinking ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", openThinkIds.has(msg.id) ? "" : "-rotate-90")} />
+                              )}
+                              <span>
+                                {msg.isThinking 
+                                  ? `Thinking... (${Math.round((Date.now() - (msg.thinkStartTime || Date.now())) / 1000)}s)` 
+                                  : `Thought for ${msg.thinkDurationMs ? Math.round(msg.thinkDurationMs / 1000) : '?'}s`}
+                              </span>
+                            </button>
+                            
+                            {openThinkIds.has(msg.id) && (
+                              <div className="mt-2 p-3 bg-gray-50/40 rounded-2xl border border-gray-100/50 text-sm text-gray-500 italic shadow-inner whitespace-pre-wrap overflow-hidden animate-in slide-in-from-top-1 duration-200">
+                                {msg.thinkContent}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {msg.content}
                       </div>
+
+                      {msg.debugInfo && !isUser && (
+                        <div className="mt-2 w-full max-w-[80%] flex flex-col items-start">
+                          <button
+                            onClick={() => {
+                              setOpenDebugIds(prev => {
+                                const newSet = new Set(prev);
+                                if (newSet.has(msg.id)) newSet.delete(msg.id);
+                                else newSet.add(msg.id);
+                                return newSet;
+                              });
+                            }}
+                            className="flex items-center gap-1.5 px-2 py-1 hover:bg-black/5 rounded-md text-[10px] text-gray-400 font-medium transition-colors cursor-pointer"
+                          >
+                            <Bug className="w-3 h-3" />
+                            {openDebugIds.has(msg.id) ? 'Hide trace' : 'View trace'}
+                          </button>
+                          
+                          {openDebugIds.has(msg.id) && (
+                            <div className="mt-2 w-full p-4 bg-gray-900 rounded-xl overflow-x-auto text-[11px] font-mono text-gray-300 shadow-inner select-text relative group/trace space-y-4">
+                              
+                              {/* Request Payload */}
+                              <div className="relative group/req">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-blue-400 font-bold tracking-wide">Request Payload:</div>
+                                  <button
+                                    onClick={() => handleCopy(JSON.stringify(msg.debugInfo.promptPayload, null, 2), `${msg.id}-req`)}
+                                    className="p-1 hover:bg-white/10 rounded-md transition-colors text-gray-400 hover:text-white flex items-center gap-1"
+                                  >
+                                    {copiedKey === `${msg.id}-req` ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                                    <span className="text-[9px]">{copiedKey === `${msg.id}-req` ? 'Copied' : 'Copy'}</span>
+                                  </button>
+                                </div>
+                                <pre className="whitespace-pre-wrap break-all bg-black/40 p-3 rounded-lg border border-white/5 select-text overflow-x-auto selection:bg-blue-500/40 selection:text-white">
+                                  {JSON.stringify(msg.debugInfo.promptPayload, null, 2)}
+                                </pre>
+                              </div>
+
+                              <div className="h-px bg-white/10 w-full" />
+                              
+                              {/* Raw Response */}
+                              <div className="relative group/res">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-green-400 font-bold tracking-wide">Raw Response:</div>
+                                  <button
+                                    onClick={() => handleCopy(JSON.stringify(msg.debugInfo.rawResponse, null, 2), `${msg.id}-res`)}
+                                    className="p-1 hover:bg-white/10 rounded-md transition-colors text-gray-400 hover:text-white flex items-center gap-1"
+                                  >
+                                    {copiedKey === `${msg.id}-res` ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                                    <span className="text-[9px]">{copiedKey === `${msg.id}-res` ? 'Copied' : 'Copy'}</span>
+                                  </button>
+                                </div>
+                                <pre className="whitespace-pre-wrap break-all bg-black/40 p-3 rounded-lg border border-white/5 select-text overflow-x-auto selection:bg-green-500/40 selection:text-white">
+                                  {JSON.stringify(msg.debugInfo.rawResponse, null, 2)}
+                                </pre>
+                              </div>
+
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })
               }
 
               {
-                isTyping[activeSessionId] && (
+                isTyping[activeSessionId] && !messages[messages.length - 1]?.isThinking && !messages[messages.length - 1]?.content && (
                   <div className="flex flex-col animate-pulse">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agents[activeAgentIndex]?.color)}>
-                        {agents[activeAgentIndex]?.name} is thinking...
+                        {agents[activeAgentIndex]?.name} is responding...
                       </span>
                     </div>
                     <div className="w-16 h-10 bg-gray-200 rounded-2xl rounded-tl-none flex items-center justify-center gap-1">
@@ -1040,19 +1354,29 @@ export default function Home() {
                   className="flex-1 bg-transparent border-none focus:ring-0 outline-none resize-none max-h-32 min-h-[36px] py-1.5 px-0 text-sm"
                   rows={1}
                 />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isTyping[activeSessionId]}
-                  className={cn(
-                    "p-2 bg-transparent rounded-xl transition-all active:scale-90",
-                    inputValue.trim()
-                      ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                      : "text-blue-600 opacity-40",
-                    isTyping[activeSessionId] && "opacity-30 cursor-not-allowed"
-                  )}
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+                
+                {isTyping[activeSessionId] ? (
+                  <button
+                    onClick={handleStopGeneration}
+                    className="p-2 bg-red-50 text-red-500 rounded-xl transition-all active:scale-90 hover:bg-red-100"
+                    title="Stop Generating"
+                  >
+                    <Square className="w-5 h-5 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim()}
+                    className={cn(
+                      "p-2 bg-transparent rounded-xl transition-all active:scale-90",
+                      inputValue.trim()
+                        ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        : "text-blue-600 opacity-40"
+                    )}
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                )}
               </div>
               <div className="text-[10px] text-gray-400 mt-2 text-center">
                 Use <strong>@AgentName</strong> to force a reply from a specific agent.

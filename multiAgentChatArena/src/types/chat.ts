@@ -13,6 +13,7 @@ export interface Agent {
 export interface ChatSession {
   id: string;
   name: string;
+  systemBasePrompt?: string;
   agents: Agent[];
   messages: Message[];
   isAutoChatting: boolean;
@@ -27,6 +28,11 @@ export interface Message {
   content: string;
   timestamp: number;
   isUser?: boolean;
+  debugInfo?: any;
+  thinkContent?: string;
+  isThinking?: boolean;
+  thinkStartTime?: number;
+  thinkDurationMs?: number;
 }
 
 export interface ProviderConfig {
