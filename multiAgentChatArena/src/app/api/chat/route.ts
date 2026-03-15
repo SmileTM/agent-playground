@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createParser } from 'eventsource-parser';
 import { ApiConfiguration, ModelProvider } from '@/types/chat';
-import { buildSystemPrompt } from '@/lib/prompts';
+import { buildSystemPrompt, formatHistoryForContext } from '@/lib/prompts';
 
 export async function POST(req: Request) {
   try {
@@ -31,28 +31,7 @@ export async function POST(req: Request) {
     // If an API key is provided OR it's a local model (which might not need a key), use the real API
     if (apiKey || model === "local") {
       // Pre-process messages for JSON history
-      // Find all messages since the current agent's last reply, EXCLUDING the current message
-      const reversedMessages = [...messages].reverse();
-      // Skip the current message (index 0 in reversed)
-      const lastAgentReplyIndexInReversed = reversedMessages.slice(1).findIndex((m: any) => m.agentId === currentAgent.id);
-      
-      let historySinceLastReply: any[] = [];
-      if (lastAgentReplyIndexInReversed === -1) {
-        // Never replied, take everything before the current message
-        historySinceLastReply = messages.slice(0, messages.length - 1);
-      } else {
-        // lastAgentReplyIndexInReversed is relative to messages.slice(1).reverse()
-        // Which means it's at index lastAgentReplyIndexInReversed + 1 in reversedMessages
-        // The index in original messages is (messages.length - 1) - (lastAgentReplyIndexInReversed + 1)
-        const lastReplyIndex = messages.length - 2 - lastAgentReplyIndexInReversed;
-        historySinceLastReply = messages.slice(lastReplyIndex + 1, messages.length - 1);
-      }
-      
-      const jsonHistory = historySinceLastReply.map((m: any) => ({
-        sender: m.agentName,
-        timestamp_ms: m.timestamp,
-        body: m.content
-      }));
+      const jsonHistory = formatHistoryForContext(messages, currentAgent.id);
 
       const systemMessageContent = buildSystemPrompt({
         currentAgent,

@@ -1,9 +1,33 @@
-import { Agent } from "@/types/chat";
+import { Agent, Message } from "@/types/chat";
 
 interface BuildSystemPromptProps {
   currentAgent: Agent;
   allAgents: Agent[];
   systemBasePrompt?: string;
+}
+
+export function formatHistoryForContext(messages: Message[], currentAgentId: string) {
+  // Find all messages since the current agent's last reply, EXCLUDING the current message (the trigger)
+  const reversedMessages = [...messages].reverse();
+  // Skip the current message (index 0 in reversed)
+  const lastAgentReplyIndexInReversed = reversedMessages.slice(1).findIndex((m) => m.agentId === currentAgentId);
+  
+  let historySinceLastReply: Message[] = [];
+  if (lastAgentReplyIndexInReversed === -1) {
+    // Never replied, take everything before the current message
+    historySinceLastReply = messages.slice(0, messages.length - 1);
+  } else {
+    // lastAgentReplyIndexInReversed is relative to messages.slice(1).reverse()
+    // The index in original messages is (messages.length - 1) - (lastAgentReplyIndexInReversed + 1)
+    const lastReplyIndex = messages.length - 2 - lastAgentReplyIndexInReversed;
+    historySinceLastReply = messages.slice(lastReplyIndex + 1, messages.length - 1);
+  }
+  
+  return historySinceLastReply.map((m) => ({
+    sender: m.agentName,
+    timestamp_ms: m.timestamp,
+    body: m.content
+  }));
 }
 
 export function buildSystemPrompt({

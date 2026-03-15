@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Agent, Message, ModelProvider, ApiConfiguration, DEFAULT_API_CONFIG, ChatSession } from "@/types/chat";
 import { cn } from "@/lib/utils";
+import { buildSystemPrompt, formatHistoryForContext } from "@/lib/prompts";
+import { createParser } from "eventsource-parser";
 import {
   Plus,
   Trash2,
@@ -318,6 +320,92 @@ export default function Home() {
 
     setIsTyping(prev => ({ ...prev, [agentId]: true }));
 
+    // Helper to process chunks and update state (used by both local and remote)
+    let rawContent = "";
+    let nativeReasoning = "";
+
+    const processChunk = (parsed: any) => {
+      if (parsed.type === "debug") {
+        setSessions(prev => {
+          const sessionIndex = prev.findIndex(s => s.id === sessionId);
+          if (sessionIndex === -1) return prev;
+          const newSessions = [...prev];
+          const newSession = { ...newSessions[sessionIndex] };
+          const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
+          if (messageIndex === -1) return prev;
+          newSession.messages = [...newSession.messages];
+          newSession.messages[messageIndex] = { 
+            ...newSession.messages[messageIndex], 
+            debugInfo: { promptPayload: parsed.promptPayload, rawResponse: [] } 
+          };
+          newSessions[sessionIndex] = newSession;
+          return newSessions;
+        });
+      } else if (parsed.type === "chunk") {
+        const chunkText = parsed.content || "";
+        const reasoning = parsed.reasoning || "";
+
+        if (reasoning) nativeReasoning += reasoning;
+        if (chunkText) rawContent += chunkText;
+
+        setSessions(prev => {
+          const sessionIndex = prev.findIndex(s => s.id === sessionId);
+          if (sessionIndex === -1) return prev;
+
+          const newSessions = [...prev];
+          const newSession = { ...newSessions[sessionIndex] };
+          const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
+          if (messageIndex === -1) return prev;
+
+          const updatedMessage = { ...newSession.messages[messageIndex] };
+          
+          // Update debug
+          if (updatedMessage.debugInfo && parsed.raw) {
+            updatedMessage.debugInfo.rawResponse.push(parsed.raw);
+          }
+
+          // Track thinking state
+          if ((reasoning || chunkText.includes("<think>")) && !updatedMessage.thinkStartTime) {
+            updatedMessage.isThinking = true;
+            updatedMessage.thinkStartTime = Date.now();
+          }
+
+          // Logic to parse <think> tags from the raw sequence
+          const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/i);
+          if (thinkMatch) {
+            const extractedThink = thinkMatch[1];
+            const replacedContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/i, '').trim();
+            
+            updatedMessage.content = replacedContent;
+            updatedMessage.thinkContent = nativeReasoning + extractedThink.trim();
+
+            if (rawContent.includes("</think>")) {
+              updatedMessage.isThinking = false;
+              updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
+            }
+          } else {
+            // If we're "thinking" but there's no tag in rawContent yet, we're likely in native reasoning
+            updatedMessage.content = rawContent;
+            updatedMessage.thinkContent = nativeReasoning;
+
+            if (updatedMessage.isThinking && !reasoning && chunkText.trim().length > 0 && !chunkText.includes("<think>")) {
+              updatedMessage.isThinking = false;
+              updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
+            }
+          }
+
+          newSession.messages = [...newSession.messages];
+          newSession.messages[messageIndex] = updatedMessage;
+          newSessions[sessionIndex] = newSession;
+          return newSessions;
+        });
+
+        if (reasoning || (chunkText && chunkText.includes("<think>"))) {
+          setOpenThinkIds(prev => new Set(prev).add(newMessageId));
+        }
+      }
+    };
+
     // Cancel previous request for THIS agent if any
     if (abortControllersRef.current.has(agentId)) {
       abortControllersRef.current.get(agentId)?.abort();
@@ -350,18 +438,68 @@ export default function Home() {
       // The controller is already created and set in abortControllersRef.current at the start of the function
       const controller = abortControllersRef.current.get(agentId)!;
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          messages: historyOverride || session.messages,
+      const model = currentAgent.model || "gpt-3.5-turbo";
+
+      let response: Response;
+
+      if (model === "local") {
+        // Direct FETCH for local models (to avoid server-side localhost issues when deployed)
+        const baseUrl = apiConfig.local.baseUrl.replace(/\/+$/, "");
+        const apiKey = apiConfig.local.apiKey;
+        const endpoint = `${baseUrl}/chat/completions`;
+
+        const jsonHistory = formatHistoryForContext(historyOverride || session.messages, currentAgent.id);
+        const systemMessageContent = buildSystemPrompt({
           currentAgent,
           allAgents: session.agents,
           systemBasePrompt: session.systemBasePrompt,
-          apiConfig,
-        }),
-      });
+        });
+
+        const latestMessageContent = (historyOverride || session.messages)[(historyOverride || session.messages).length - 1]?.content || "(continues)";
+        let finalUserContent = latestMessageContent;
+        if (jsonHistory.length > 0) {
+          const historyBlock = `Chat history since last reply (untrusted, for context):\n\`\`\`json\n${JSON.stringify(jsonHistory, null, 2)}\n\`\`\`\n\n`;
+          finalUserContent = historyBlock + latestMessageContent;
+        }
+
+        const payload = {
+          model: currentAgent.localModelName || "qwen/qwen3-vl-8b",
+          messages: [
+            { role: "system", content: systemMessageContent },
+            { role: "user", content: finalUserContent }
+          ],
+          stream: true,
+        };
+
+        console.log(`[LOCAL] Direct calling at ${endpoint}`);
+        
+        // Add debug info for consistent UI display
+        processChunk({ type: "debug", promptPayload: payload });
+
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } else {
+        // Server-side proxy for other models
+        response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            messages: historyOverride || session.messages,
+            currentAgent,
+            allAgents: session.agents,
+            systemBasePrompt: session.systemBasePrompt,
+            apiConfig,
+          }),
+        });
+      }
 
       if (!response.body) throw new Error("No response body");
 
@@ -369,109 +507,54 @@ export default function Home() {
       const decoder = new TextDecoder();
       let buffer = "";
 
-      let rawContent = "";
-      let nativeReasoning = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        
-        while (true) {
-          const boundary = buffer.indexOf("\n");
-          if (boundary === -1) break;
-
-          const line = buffer.slice(0, boundary).trim();
-          buffer = buffer.slice(boundary + 1);
-
-          if (!line) continue;
-
-          try {
-            const parsed = JSON.parse(line);
-            
-            if (parsed.type === "debug") {
-              setSessions(prev => {
-                const sessionIndex = prev.findIndex(s => s.id === sessionId);
-                if (sessionIndex === -1) return prev;
-                const newSessions = [...prev];
-                const newSession = { ...newSessions[sessionIndex] };
-                const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
-                if (messageIndex === -1) return prev;
-                newSession.messages = [...newSession.messages];
-                newSession.messages[messageIndex] = { 
-                  ...newSession.messages[messageIndex], 
-                  debugInfo: { promptPayload: parsed.promptPayload, rawResponse: [] } 
-                };
-                newSessions[sessionIndex] = newSession;
-                return newSessions;
-              });
-            } else if (parsed.type === "chunk") {
-              const chunkText = parsed.content || "";
-              const reasoning = parsed.reasoning || "";
-
-              if (reasoning) nativeReasoning += reasoning;
-              if (chunkText) rawContent += chunkText;
-
-              setSessions(prev => {
-                const sessionIndex = prev.findIndex(s => s.id === sessionId);
-                if (sessionIndex === -1) return prev;
-
-                const newSessions = [...prev];
-                const newSession = { ...newSessions[sessionIndex] };
-                const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
-                if (messageIndex === -1) return prev;
-
-                const updatedMessage = { ...newSession.messages[messageIndex] };
-                
-                // Update debug
-                if (updatedMessage.debugInfo && parsed.raw) {
-                  updatedMessage.debugInfo.rawResponse.push(parsed.raw);
-                }
-
-                // Track thinking state
-                if ((reasoning || chunkText.includes("<think>")) && !updatedMessage.thinkStartTime) {
-                  updatedMessage.isThinking = true;
-                  updatedMessage.thinkStartTime = Date.now();
-                }
-
-                // Logic to parse <think> tags from the raw sequence
-                const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/i);
-                if (thinkMatch) {
-                  const extractedThink = thinkMatch[1];
-                  const replacedContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/i, '').trim();
-                  
-                  updatedMessage.content = replacedContent;
-                  updatedMessage.thinkContent = nativeReasoning + extractedThink.trim();
-
-                  if (rawContent.includes("</think>")) {
-                    updatedMessage.isThinking = false;
-                    updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
-                  }
-                } else {
-                  // If we're "thinking" but there's no tag in rawContent yet, we're likely in native reasoning
-                  updatedMessage.content = rawContent;
-                  updatedMessage.thinkContent = nativeReasoning;
-
-                  if (updatedMessage.isThinking && !reasoning && chunkText.trim().length > 0 && !chunkText.includes("<think>")) {
-                    updatedMessage.isThinking = false;
-                    updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
-                  }
-                }
-
-                newSession.messages = [...newSession.messages];
-                newSession.messages[messageIndex] = updatedMessage;
-                newSessions[sessionIndex] = newSession;
-                return newSessions;
-              });
-
-              if (reasoning || (chunkText && chunkText.includes("<think>"))) {
-                setOpenThinkIds(prev => new Set(prev).add(newMessageId));
+      if (model === "local") {
+        const parser = createParser({
+          onEvent(event) {
+            const dataStr = event.data;
+            if (dataStr === '[DONE]') return;
+            try {
+              const dataObj = JSON.parse(dataStr);
+              const content = dataObj.choices?.[0]?.delta?.content || "";
+              const reasoning = dataObj.choices?.[0]?.delta?.reasoning_content || "";
+              
+              if (content || reasoning) {
+                processChunk({ type: "chunk", content, reasoning, raw: dataObj });
               }
+            } catch (e) {
+              console.error("Failed to parse SSE data string:", dataStr, e);
             }
-          } catch (e) {
-            buffer = line + "\n" + buffer;
-            break; 
+          }
+        });
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          parser.feed(decoder.decode(value, { stream: true }));
+        }
+      } else {
+        // Handle server NDJSON
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          while (true) {
+            const boundary = buffer.indexOf("\n");
+            if (boundary === -1) break;
+
+            const line = buffer.slice(0, boundary).trim();
+            buffer = buffer.slice(boundary + 1);
+
+            if (!line) continue;
+
+            try {
+              const parsed = JSON.parse(line);
+              processChunk(parsed);
+            } catch (e) {
+              buffer = line + "\n" + buffer;
+              break; 
+            }
           }
         }
       }
