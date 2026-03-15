@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "eventsource-parser": "^3.0.6",
     "lucide-react": "^0.562.0",
