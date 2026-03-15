@@ -110,7 +110,7 @@ const generateId = (prefix: string = 'id') => `${prefix}-${Date.now()}-${Math.ra
 export default function Home() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState("");
-  const [isTyping, setIsTyping] = useState<Record<string, boolean>>({}); // SessionId -> isTyping
+  const [isTyping, setIsTyping] = useState<Record<string, boolean>>({}); // agentId -> isTyping
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState("");
 
@@ -141,7 +141,8 @@ export default function Home() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentionListRef = useRef<HTMLDivElement>(null);
   const mentionPopupRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const userScrolledUpRef = useRef(false);
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [hoveredAgentIndex, setHoveredAgentIndex] = useState<number | null>(null);
 
@@ -249,12 +250,35 @@ export default function Home() {
     localStorage.setItem("chat_active_session_id", activeSessionId);
   }, [activeSessionId, isLoaded]);
 
-  // Auto-scroll to bottom
+  // Track user scroll intent via wheel event (only fires on real user interaction, not programmatic scroll)
   useEffect(() => {
-    if (scrollRef.current) {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // User scrolling up -> lock scroll position
+      if (e.deltaY < 0) {
+        userScrolledUpRef.current = true;
+      }
+      // User scrolling down near the bottom -> unlock
+      if (e.deltaY > 0) {
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        if (distanceFromBottom < 100) {
+          userScrolledUpRef.current = false;
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: true });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Auto-scroll to bottom (respects user scroll intent)
+  useEffect(() => {
+    if (scrollRef.current && !userScrolledUpRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-    // No longer rely on [activeSessionId] for typing, check all
   }, [messages, isTyping]);
 
   const updateSession = (sessionId: string, updates: Partial<ChatSession> | ((prev: ChatSession) => Partial<ChatSession>)) => {
@@ -285,14 +309,23 @@ export default function Home() {
 
 
 
-  const getNextResponse = async (sessionId: string, forcedAgentIndex?: number, historyOverride?: Message[]) => {
+  const getNextResponse = async (sessionId: string, agentIndex: number, historyOverride?: Message[]): Promise<Message | null> => {
     const session = sessions.find(s => s.id === sessionId);
-    if (!session || session.agents.length === 0) return;
+    if (!session || session.agents.length === 0) return null;
 
-    setIsTyping(prev => ({ ...prev, [sessionId]: true }));
+    const currentAgent = session.agents[agentIndex];
+    const agentId = currentAgent.id;
 
-    const indexToUse = forcedAgentIndex !== undefined ? forcedAgentIndex : session.activeAgentIndex;
-    const currentAgent = session.agents[indexToUse];
+    setIsTyping(prev => ({ ...prev, [agentId]: true }));
+
+    // Cancel previous request for THIS agent if any
+    if (abortControllersRef.current.has(agentId)) {
+      abortControllersRef.current.get(agentId)?.abort();
+    }
+
+    // Create a per-agent abort controller
+    const controller = new AbortController();
+    abortControllersRef.current.set(agentId, controller);
 
     let newMessageId = generateId('msg');
     let newMessage: Message = {
@@ -314,18 +347,13 @@ export default function Home() {
     addMessageToSession(sessionId, newMessage);
 
     try {
-      // Cancel previous request if any
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
-      // Create new abort controller
-      abortControllerRef.current = new AbortController();
+      // The controller is already created and set in abortControllersRef.current at the start of the function
+      const controller = abortControllersRef.current.get(agentId)!;
 
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: abortControllerRef.current.signal,
+        signal: controller.signal,
         body: JSON.stringify({
           messages: historyOverride || session.messages,
           currentAgent,
@@ -342,7 +370,8 @@ export default function Home() {
       let buffer = "";
 
       let rawContent = "";
-      
+      let nativeReasoning = "";
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -351,10 +380,10 @@ export default function Home() {
         
         while (true) {
           const boundary = buffer.indexOf("\n");
-          if (boundary === -1) break; // Wait for more data to complete a line
+          if (boundary === -1) break;
 
           const line = buffer.slice(0, boundary).trim();
-          buffer = buffer.slice(boundary + 1); // Remove processed line from buffer
+          buffer = buffer.slice(boundary + 1);
 
           if (!line) continue;
 
@@ -362,94 +391,109 @@ export default function Home() {
             const parsed = JSON.parse(line);
             
             if (parsed.type === "debug") {
-              newMessage.debugInfo = { promptPayload: parsed.promptPayload, rawResponse: [] };
+              setSessions(prev => {
+                const sessionIndex = prev.findIndex(s => s.id === sessionId);
+                if (sessionIndex === -1) return prev;
+                const newSessions = [...prev];
+                const newSession = { ...newSessions[sessionIndex] };
+                const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
+                if (messageIndex === -1) return prev;
+                newSession.messages = [...newSession.messages];
+                newSession.messages[messageIndex] = { 
+                  ...newSession.messages[messageIndex], 
+                  debugInfo: { promptPayload: parsed.promptPayload, rawResponse: [] } 
+                };
+                newSessions[sessionIndex] = newSession;
+                return newSessions;
+              });
             } else if (parsed.type === "chunk") {
-              let chunkText = parsed.content || "";
-              let reasoning = parsed.reasoning || "";
+              const chunkText = parsed.content || "";
+              const reasoning = parsed.reasoning || "";
 
-              // Track thinking state
-              if ((reasoning || chunkText.includes("<think>")) && !newMessage.thinkStartTime) {
-                newMessage.isThinking = true;
-                newMessage.thinkStartTime = Date.now();
-                // Auto-expand the thought process for a live-streaming feel
-                setOpenThinkIds(prev => new Set(prev).add(newMessageId));
-              }
+              if (reasoning) nativeReasoning += reasoning;
+              if (chunkText) rawContent += chunkText;
 
-              // Native reasoning (e.g. from DeepSeek v3 via API)
-              if (reasoning) {
-                newMessage.thinkContent = (newMessage.thinkContent || "") + reasoning;
-              }
+              setSessions(prev => {
+                const sessionIndex = prev.findIndex(s => s.id === sessionId);
+                if (sessionIndex === -1) return prev;
 
-              // Standard content (which might contain <think> tags natively)
-              if (chunkText) {
-                // If we were thinking and now we get non-think content, finish thinking
-                if (newMessage.isThinking && !chunkText.includes("<think>") && !rawContent.includes("<think>")) {
-                  // This is a heuristic: if we get content but no <think> tag, and we were "thinking", check if it's actually finished
+                const newSessions = [...prev];
+                const newSession = { ...newSessions[sessionIndex] };
+                const messageIndex = newSession.messages.findIndex(m => m.id === newMessageId);
+                if (messageIndex === -1) return prev;
+
+                const updatedMessage = { ...newSession.messages[messageIndex] };
+                
+                // Update debug
+                if (updatedMessage.debugInfo && parsed.raw) {
+                  updatedMessage.debugInfo.rawResponse.push(parsed.raw);
                 }
 
-                rawContent += chunkText;
-                
-                // Live parse <think> tags out of rawContent
+                // Track thinking state
+                if ((reasoning || chunkText.includes("<think>")) && !updatedMessage.thinkStartTime) {
+                  updatedMessage.isThinking = true;
+                  updatedMessage.thinkStartTime = Date.now();
+                }
+
+                // Logic to parse <think> tags from the raw sequence
                 const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/i);
                 if (thinkMatch) {
                   const extractedThink = thinkMatch[1];
                   const replacedContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/i, '').trim();
-                  newMessage.content = replacedContent;
-                  // Use native reasoning if it exists, otherwise fall back to parsed
-                  if (!reasoning) {
-                    newMessage.thinkContent = extractedThink.trim();
-                  }
+                  
+                  updatedMessage.content = replacedContent;
+                  updatedMessage.thinkContent = nativeReasoning + extractedThink.trim();
 
-                  // Check if thinking is finished inside the <think> tag
                   if (rawContent.includes("</think>")) {
-                    if (newMessage.isThinking) {
-                      newMessage.isThinking = false;
-                      newMessage.thinkDurationMs = Date.now() - (newMessage.thinkStartTime || Date.now());
-                    }
+                    updatedMessage.isThinking = false;
+                    updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
                   }
                 } else {
-                  // If we have native reasoning but no <think> tag in content, we might have finished reasoning
-                  if (newMessage.isThinking && !reasoning && chunkText) {
-                    newMessage.isThinking = false;
-                    newMessage.thinkDurationMs = Date.now() - (newMessage.thinkStartTime || Date.now());
+                  // If we're "thinking" but there's no tag in rawContent yet, we're likely in native reasoning
+                  updatedMessage.content = rawContent;
+                  updatedMessage.thinkContent = nativeReasoning;
+
+                  if (updatedMessage.isThinking && !reasoning && chunkText.trim().length > 0 && !chunkText.includes("<think>")) {
+                    updatedMessage.isThinking = false;
+                    updatedMessage.thinkDurationMs = Date.now() - (updatedMessage.thinkStartTime || Date.now());
                   }
-                  newMessage.content = rawContent;
                 }
-              }
 
-              // Append raw chunk event to debug
-              if (newMessage.debugInfo && parsed.raw) {
-                newMessage.debugInfo.rawResponse.push(parsed.raw);
-              }
+                newSession.messages = [...newSession.messages];
+                newSession.messages[messageIndex] = updatedMessage;
+                newSessions[sessionIndex] = newSession;
+                return newSessions;
+              });
 
-              // Update the state incrementally
-              setSessions(prev => prev.map(s => {
-                if (s.id !== sessionId) return s;
-                return {
-                  ...s,
-                  messages: s.messages.map(m => m.id === newMessageId ? { ...newMessage } : m)
-                };
-              }));
+              if (reasoning || (chunkText && chunkText.includes("<think>"))) {
+                setOpenThinkIds(prev => new Set(prev).add(newMessageId));
+              }
             }
           } catch (e) {
-            // If it's incomplete JSON due to a newline inside a string property, 
-            // we must put the line back into the buffer and wait for the rest.
             buffer = line + "\n" + buffer;
             break; 
           }
         }
       }
 
-      if (forcedAgentIndex !== undefined) {
-        updateSession(sessionId, { activeAgentIndex: (forcedAgentIndex + 1) % session.agents.length });
-      } else {
-        updateSession(sessionId, (prev) => ({ activeAgentIndex: (prev.activeAgentIndex + 1) % session.agents.length }));
-      }
-      
-      return newMessage;
+      // Need to get the final state of the message to return accurately
+      // But we can approximate it with our local accumulators
+      const finalThinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/i);
+      const finalContent = finalThinkMatch 
+        ? rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/i, '').trim()
+        : rawContent;
+      const finalThinkContent = nativeReasoning + (finalThinkMatch ? finalThinkMatch[1].trim() : "");
+
+      return {
+        ...newMessage,
+        content: finalContent,
+        thinkContent: finalThinkContent,
+        isThinking: false,
+        thinkDurationMs: Date.now() - (newMessage.thinkStartTime || Date.now())
+      };
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log("Generation stopped by user.");
+        console.log(`Generation for ${currentAgent.name} stopped by user.`);
         // Finalize message state if it was thinking
         setSessions(prev => prev.map(s => {
           if (s.id !== sessionId) return s;
@@ -468,7 +512,7 @@ export default function Home() {
           };
         }));
       } else {
-        console.error("Failed to get response:", error);
+        console.error(`Failed to get response for ${currentAgent.name}:`, error);
         // Show error message in the bubble
         setSessions(prev => prev.map(s => {
           if (s.id !== sessionId) return s;
@@ -489,23 +533,23 @@ export default function Home() {
       }
       return null;
     } finally {
-      setIsTyping(prev => ({ ...prev, [sessionId]: false }));
-      abortControllerRef.current = null;
+      setIsTyping(prev => ({ ...prev, [agentId]: false }));
+      abortControllersRef.current.delete(agentId);
     }
   };
 
   const handleStopGeneration = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    abortControllersRef.current.forEach(controller => controller.abort());
+    abortControllersRef.current.clear();
     updateActiveSession({ isAutoChatting: false });
-    setIsTyping(prev => ({ ...prev, [activeSessionId]: false }));
+    setIsTyping({});
   };
 
   useEffect(() => {
     // Check ALL sessions for auto-chat
     const timers: NodeJS.Timeout[] = [];
 
+    /* 
     sessions.forEach(session => {
       if (session.isAutoChatting && !isTyping[session.id]) {
         const timer = setTimeout(() => {
@@ -514,6 +558,7 @@ export default function Home() {
         timers.push(timer);
       }
     });
+    */
 
     return () => timers.forEach(clearTimeout);
   }, [sessions, isTyping]); // Re-run when sessions change (messages added) or typing state changes
@@ -638,6 +683,14 @@ export default function Home() {
 
     const updatedMessages = [...messages, newMessage];
 
+    // Force scroll to bottom when user sends a message
+    userScrolledUpRef.current = false;
+    if (scrollRef.current) {
+      setTimeout(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }, 50);
+    }
+
     // Optimistic update
     setSessions(prev => prev.map(s => {
       if (s.id === activeSessionId) {
@@ -646,29 +699,55 @@ export default function Home() {
       return s;
     }));
 
-    // Identify all mentioned agents
-    const mentionedAgents = agents.filter(a => currentInputValue.includes(`@${a.name}`));
-
-    // Add to history
+    // Add to input history
     setInputHistory(prev => [inputValue, ...prev.filter(h => h !== inputValue)].slice(0, 50));
     setHistoryIndex(-1);
     setInputValue("");
 
-    if (mentionedAgents.length > 0) {
-      // Trigger sequential responses for all mentioned agents
-      let currentHistory = updatedMessages;
-      for (const agent of mentionedAgents) {
-        const agentIndex = agents.findIndex(a => a.id === agent.id);
-        if (agentIndex !== -1) {
-          const responseMsg = await getNextResponse(activeSessionId, agentIndex, currentHistory);
-          if (responseMsg) {
-             currentHistory = [...currentHistory, responseMsg];
+    // --- ORCHESTRATION LOGIC (Parallel with Input Isolation) ---
+    const initialMentions = agents
+      .map((a, index) => (currentInputValue.includes(`@${a.name}`) ? index : -1))
+      .filter(index => index !== -1);
+
+    if (initialMentions.length === 0) return;
+
+    let currentHistory = updatedMessages;
+    let depth = 0;
+    const maxDepth = 5;
+    let currentRoundAgentIndices = initialMentions;
+
+    while (currentRoundAgentIndices.length > 0 && depth < maxDepth) {
+      // Input Isolation: All agents in the same round see the SAME history
+      const historyForThisRound = [...currentHistory];
+      
+      // Execute all mentioned agents in parallel
+      const responses = await Promise.all(
+        currentRoundAgentIndices.map(agentIndex => 
+          getNextResponse(activeSessionId, agentIndex, historyForThisRound)
+        )
+      );
+
+      // Filter out failed responses and update history for next round
+      const validResponses = responses.filter((r): r is Message => r !== null && !!r.content);
+      if (validResponses.length === 0) break;
+
+      currentHistory = [...currentHistory, ...validResponses];
+      depth++;
+
+      // Chain reaction: scan all NEW responses for NEW @Mentions
+      const nextRoundAgentIndices: number[] = [];
+      validResponses.forEach(res => {
+        agents.forEach((a, aIdx) => {
+          // Trigger if mentioned, not mentioning itself, and not already in this round's results
+          if (res.content.includes(`@${a.name}`) && a.id !== res.agentId) {
+            if (!nextRoundAgentIndices.includes(aIdx)) {
+              nextRoundAgentIndices.push(aIdx);
+            }
           }
-        }
-      }
-    } else {
-      // Fallback to active agent if none mentioned
-      await getNextResponse(activeSessionId, undefined, updatedMessages);
+        });
+      });
+
+      currentRoundAgentIndices = nextRoundAgentIndices;
     }
   };
 
@@ -1144,7 +1223,7 @@ export default function Home() {
               className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
             >
               {
-                messages.length === 0 && !isTyping[activeSessionId] && (
+                messages.length === 0 && !Object.values(isTyping).some(Boolean) && (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
                     <Bot className="w-16 h-16 opacity-20" />
                     <p>The arena is empty. Start auto-chat to begin the conversation.</p>
@@ -1185,7 +1264,7 @@ export default function Home() {
                         )}
                       >
                         {/* Think Content Block */}
-                        {msg.thinkContent && !isUser && (
+                        {(msg.thinkContent || msg.isThinking) && !isUser && (
                           <div className="mb-3">
                             <button
                               onClick={() => {
@@ -1215,7 +1294,7 @@ export default function Home() {
                               </span>
                             </button>
                             
-                            {openThinkIds.has(msg.id) && (
+                            {(openThinkIds.has(msg.id) || msg.isThinking) && msg.thinkContent && (
                               <div className="mt-2 p-3 bg-gray-50/40 rounded-2xl border border-gray-100/50 text-sm text-gray-500 italic shadow-inner whitespace-pre-wrap overflow-hidden animate-in slide-in-from-top-1 duration-200">
                                 {msg.thinkContent}
                               </div>
@@ -1224,6 +1303,9 @@ export default function Home() {
                         )}
 
                         {msg.content}
+                        {!isUser && isTyping[msg.agentId] && !msg.content.endsWith("...") && (
+                          <span className="inline-block w-1.5 h-4 ml-1 bg-blue-400/50 animate-pulse rounded-full align-middle" />
+                        )}
                       </div>
 
                       {msg.debugInfo && !isUser && (
@@ -1291,22 +1373,7 @@ export default function Home() {
                 })
               }
 
-              {
-                isTyping[activeSessionId] && !messages[messages.length - 1]?.isThinking && !messages[messages.length - 1]?.content && (
-                  <div className="flex flex-col animate-pulse">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase", agents[activeAgentIndex]?.color)}>
-                        {agents[activeAgentIndex]?.name} is responding...
-                      </span>
-                    </div>
-                    <div className="w-16 h-10 bg-gray-200 rounded-2xl rounded-tl-none flex items-center justify-center gap-1">
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
-                    </div>
-                  </div>
-                )
-              }
+              {/* The "is responding" bubbles are now merged into the message bubbles above */}
             </div >
 
             {/* Input Area */}
@@ -1355,7 +1422,7 @@ export default function Home() {
                   rows={1}
                 />
                 
-                {isTyping[activeSessionId] ? (
+                {Object.values(isTyping).some(Boolean) ? (
                   <button
                     onClick={handleStopGeneration}
                     className="p-2 bg-red-50 text-red-500 rounded-xl transition-all active:scale-90 hover:bg-red-100"

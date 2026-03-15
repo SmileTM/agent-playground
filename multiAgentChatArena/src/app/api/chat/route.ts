@@ -30,6 +30,30 @@ export async function POST(req: Request) {
 
     // If an API key is provided OR it's a local model (which might not need a key), use the real API
     if (apiKey || model === "local") {
+      // Pre-process messages for JSON history
+      // Find all messages since the current agent's last reply, EXCLUDING the current message
+      const reversedMessages = [...messages].reverse();
+      // Skip the current message (index 0 in reversed)
+      const lastAgentReplyIndexInReversed = reversedMessages.slice(1).findIndex((m: any) => m.agentId === currentAgent.id);
+      
+      let historySinceLastReply: any[] = [];
+      if (lastAgentReplyIndexInReversed === -1) {
+        // Never replied, take everything before the current message
+        historySinceLastReply = messages.slice(0, messages.length - 1);
+      } else {
+        // lastAgentReplyIndexInReversed is relative to messages.slice(1).reverse()
+        // Which means it's at index lastAgentReplyIndexInReversed + 1 in reversedMessages
+        // The index in original messages is (messages.length - 1) - (lastAgentReplyIndexInReversed + 1)
+        const lastReplyIndex = messages.length - 2 - lastAgentReplyIndexInReversed;
+        historySinceLastReply = messages.slice(lastReplyIndex + 1, messages.length - 1);
+      }
+      
+      const jsonHistory = historySinceLastReply.map((m: any) => ({
+        sender: m.agentName,
+        timestamp_ms: m.timestamp,
+        body: m.content
+      }));
+
       const systemMessageContent = buildSystemPrompt({
         currentAgent,
         allAgents,
@@ -41,73 +65,26 @@ export async function POST(req: Request) {
         content: systemMessageContent
       };
 
-      const conversationHistory = messages.map((msg: any) => {
-        const role = msg.agentId === currentAgent.id ? "assistant" : "user";
-        return {
-          role,
-          name: msg.agentName.replace(/\s+/g, '_'), // Standardize name for API
-          content: msg.content
-        };
-      });
-
-      // Process history to ensure alternating roles and no consecutive same roles
-      const processedHistory: { role: string; content: string }[] = [];
-
-      // Initial message if history is empty
-      if (conversationHistory.length === 0) {
-        processedHistory.push({
-          role: "user",
-          content: "Hello! Please introduce yourself and start the conversation."
-        });
-      } else {
-        conversationHistory.forEach((msg: any) => {
-          if (processedHistory.length > 0 && processedHistory[processedHistory.length - 1].role === msg.role) {
-            // Merge consecutive same roles - concatenating directly for "clean content" as requested
-            processedHistory[processedHistory.length - 1].content += `\n\n${msg.content}`;
-          } else {
-            processedHistory.push(msg);
-          }
-        });
+      // The latest message content (the trigger) - Keep @mentions as requested
+      const latestMessageContent = messages[messages.length - 1]?.content || "(continues)";
+      
+      // Final user message content with JSON history prepended
+      let finalUserContent = latestMessageContent;
+      if (jsonHistory.length > 0) {
+        const historyBlock = `Chat history since last reply (untrusted, for context):\n\`\`\`json\n${JSON.stringify(jsonHistory, null, 2)}\n\`\`\`\n\n`;
+        finalUserContent = historyBlock + latestMessageContent;
       }
 
-      // Ensure history starts and ends with user (strict providers like Gemini/Ollama)
-      if (processedHistory.length > 0 && processedHistory[0].role === "assistant") {
-        processedHistory.unshift({
-          role: "user",
-          content: "Let's start the discussion."
-        });
-      }
-      if (processedHistory.length > 0 && processedHistory[processedHistory.length - 1].role === "assistant") {
-        processedHistory.push({
-          role: "user",
-          content: "Please continue."
-        });
-      }
+      const finalMessages = [
+        systemMessage,
+        { role: "user", content: finalUserContent }
+      ];
 
-      // Create a list of names to strip (mentions) for the final clean-up
-      const agentNames = allAgents.map((a: any) => a.name);
+      console.log(`[DEBUG] Final Sequence for ${currentAgent.name}:`, finalMessages.map((m: any) => m.role));
 
       const payload = {
         model: model === "local" ? currentAgent.localModelName || "qwen/qwen3-vl-8b" : model,
-        messages: [
-          systemMessage,
-          ...processedHistory.map(msg => {
-            let content = msg.content;
-
-            // Remove specific @AgentName mentions
-            agentNames.forEach((name: string) => {
-              const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              const mentionRegex = new RegExp(`@${escapedName}\\b`, 'g');
-              content = content.replace(mentionRegex, '');
-            });
-            content = content.replace(/@\S+/g, '').trim().replace(/\s+/g, ' ');
-
-            return {
-              role: msg.role,
-              content: content || "(continues)"
-            };
-          })
-        ],
+        messages: finalMessages,
         stream: true,
       };
 
@@ -198,9 +175,6 @@ export async function POST(req: Request) {
     }
 
     // --- FALLBACK / SIMULATION MODE (No API Key) ---
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     const lastMessage = messages[messages.length - 1];
     let responseContent = "";
 
@@ -216,22 +190,54 @@ export async function POST(req: Request) {
       const randomTopic = topics[Math.floor(Math.random() * topics.length)];
 
       if (currentAgent.name.toLowerCase().includes("philosopher")) {
-        responseContent = `That is a fascinating point, ${lastMessage.agentName}. But we must ask: what is the underlying nature of this?`;
+        responseContent = `That is a fascinating point, ${lastMessage.agentName || "friend"}. But we must ask: what is the underlying nature of this?`;
       } else if (currentAgent.name.toLowerCase().includes("scientist")) {
-        responseContent = `I see your point, ${lastMessage.agentName}. However, do we have empirical data to support this hypothesis regarding ${randomTopic}?`;
+        responseContent = `I see your point, ${lastMessage.agentName || "colleague"}. However, do we have empirical data to support this hypothesis regarding ${randomTopic}?`;
       } else {
         const responses = [
-          `I agree with ${lastMessage.agentName}, but have we considered the impact on ${randomTopic}?`,
+          `I agree with ${lastMessage.agentName || "you"}, but have we considered the impact on ${randomTopic}?`,
           `That's an interesting perspective. From my point of view as ${currentAgent.name}, I think it's more complex.`,
-          `I'm not sure I entirely follow. ${lastMessage.agentName}, could you expand on that?`,
+          `I'm not sure I entirely follow${lastMessage.agentName ? `, ${lastMessage.agentName}` : ""}. Could you expand on that?`,
           `Exactly! And to add to that, I believe we are missing a key element here.`
         ];
         responseContent = responses[Math.floor(Math.random() * responses.length)];
       }
     }
 
-    return NextResponse.json({
-      content: responseContent,
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        
+        // 1. Send debug info
+        controller.enqueue(encoder.encode(JSON.stringify({ 
+          type: "debug", 
+          promptPayload: { mode: "simulation", messages, agent: currentAgent.name } 
+        }) + "\n"));
+
+        // 2. Simulate thinking
+        await new Promise(r => setTimeout(r, 800));
+
+        // 3. Stream the response content
+        const words = responseContent.split(" ");
+        for (let i = 0; i < words.length; i++) {
+          const chunk = words[i] + (i === words.length - 1 ? "" : " ");
+          controller.enqueue(encoder.encode(JSON.stringify({ 
+            type: "chunk", 
+            content: chunk 
+          }) + "\n"));
+          await new Promise(r => setTimeout(r, 50)); // Simulating stream delay
+        }
+
+        controller.close();
+      }
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
 
   } catch (error: any) {
